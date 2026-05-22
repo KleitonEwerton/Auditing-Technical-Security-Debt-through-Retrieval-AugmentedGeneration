@@ -1,0 +1,127 @@
+{
+  "arquivos": {
+    "llm": "resultados_llm.json",
+    "rag": "resultados_rag.json"
+  },
+  "llm": {
+    "total": 548,
+    "validos": 548,
+    "invalidos": 0,
+    "cwe": {
+      "acertos": 386,
+      "total": 548,
+      "acuracia_percentual": 70.44
+    },
+    "stride": {
+      "classificados": 548,
+      "total_validos": 548,
+      "cobertura_percentual": 100.0,
+      "distribuicao": {
+        "Spoofing": 158,
+        "Information Disclosure": 281,
+        "Tampering": 69,
+        "Elevation of Privilege": 40
+      }
+    },
+    "distribuicao_cwe_predita": {
+      "CWE-79": 186,
+      "CWE-89": 111,
+      "CWE-614": 96,
+      "CWE-328": 31,
+      "CWE-78": 40,
+      "CWE-22": 43,
+      "CWE-90": 12,
+      "CWE-501": 19,
+      "CWE-330": 5,
+      "CWE-643": 4,
+      "CWE-327": 1
+    }
+  },
+  "rag": {
+    "total": 548,
+    "validos": 548,
+    "invalidos": 0,
+    "cwe": {
+      "acertos": 498,
+      "total": 548,
+      "acuracia_percentual": 90.88
+    },
+    "stride": {
+      "classificados": 548,
+      "total_validos": 548,
+      "cobertura_percentual": 100.0,
+      "distribuicao": {
+        "Tampering": 144,
+        "Information Disclosure": 260,
+        "Spoofing": 104,
+        "Elevation of Privilege": 40
+      }
+    },
+    "distribuicao_cwe_predita": {
+      "CWE-328": 47,
+      "CWE-89": 111,
+      "CWE-79": 111,
+      "CWE-614": 47,
+      "CWE-327": 43,
+      "CWE-330": 47,
+      "CWE-78": 40,
+      "CWE-22": 42,
+      "CWE-90": 12,
+      "CWE-501": 44,
+      "CWE-643": 4
+    }
+  },
+  "comparacao": {
+    "cwe_accuracy_delta": 20.44,
+    "stride_coverage_delta": 0.0,
+    "validos_delta": 0,
+    "invalidos_delta": 0,
+    "melhor_em_cwe": "RAG",
+    "melhor_em_stride": "Empate"
+  },
+  "stride_ground_truth_map": {
+    "CWE-22": [
+      "Information Disclosure"
+    ],
+    "CWE-78": [
+      "Elevation of Privilege",
+      "Tampering"
+    ],
+    "CWE-79": [
+      "Tampering",
+      "Elevation of Privilege",
+      "Information Disclosure"
+    ],
+    "CWE-89": [
+      "Tampering",
+      "Information Disclosure"
+    ],
+    "CWE-90": [
+      "Information Disclosure",
+      "Elevation of Privilege"
+    ],
+    "CWE-327": [
+      "Information Disclosure",
+      "Spoofing"
+    ],
+    "CWE-328": [
+      "Information Disclosure",
+      "Spoofing"
+    ],
+    "CWE-330": [
+      "Spoofing",
+      "Information Disclosure"
+    ],
+    "CWE-501": [
+      "Elevation of Privilege",
+      "Spoofing"
+    ],
+    "CWE-614": [
+      "Information Disclosure"
+    ],
+    "CWE-643": [
+      "Information Disclosure",
+      "Elevation of Privilege"
+    ]
+  }
+}

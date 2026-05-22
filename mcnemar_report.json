@@ -1,0 +1,12 @@
+{
+  "total_alinhados": 548,
+  "both_correct": 386,
+  "llm_only_correct": 0,
+  "rag_only_correct": 112,
+  "both_wrong": 50,
+  "discordant_b": 0,
+  "discordant_c": 112,
+  "exact_two_sided_p": 3.851859888774472e-34,
+  "chi2_continuity_corrected_stat": 110.00892857142857,
+  "chi2_p_value": 0.0
+}

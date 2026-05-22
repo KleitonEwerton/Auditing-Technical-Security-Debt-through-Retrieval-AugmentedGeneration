@@ -1,0 +1,128 @@
+{
+  "resumo_geral": {
+    "total_testes": 548,
+    "testes_validos": 548,
+    "erros": 0
+  },
+  "analises": {
+    "1_cwe_isolado": {
+      "descricao": "Reconhecimento do tipo de CWE",
+      "metricas_por_cwe": {
+        "CWE-22": {
+          "acertos": 42,
+          "total": 42,
+          "acuracia": 100.0
+        },
+        "CWE-327": {
+          "acertos": 43,
+          "total": 43,
+          "acuracia": 100.0
+        },
+        "CWE-328": {
+          "acertos": 47,
+          "total": 47,
+          "acuracia": 100.0
+        },
+        "CWE-330": {
+          "acertos": 47,
+          "total": 96,
+          "acuracia": 48.96
+        },
+        "CWE-501": {
+          "acertos": 28,
+          "total": 29,
+          "acuracia": 96.55
+        },
+        "CWE-614": {
+          "acertos": 13,
+          "total": 13,
+          "acuracia": 100.0
+        },
+        "CWE-643": {
+          "acertos": 4,
+          "total": 4,
+          "acuracia": 100.0
+        },
+        "CWE-78": {
+          "acertos": 40,
+          "total": 40,
+          "acuracia": 100.0
+        },
+        "CWE-79": {
+          "acertos": 111,
+          "total": 111,
+          "acuracia": 100.0
+        },
+        "CWE-89": {
+          "acertos": 111,
+          "total": 111,
+          "acuracia": 100.0
+        },
+        "CWE-90": {
+          "acertos": 12,
+          "total": 12,
+          "acuracia": 100.0
+        }
+      },
+      "acuracia_geral": 90.88,
+      "total_acertos": 498,
+      "total_testes": 548
+    },
+    "2_stride_distribution": {
+      "descricao": "Distribuição de classificações STRIDE",
+      "cobertura_percentual": 100.0,
+      "total_classificados": 548,
+      "total_testes": 548,
+      "distribuicao_geral": {
+        "Information Disclosure": 260,
+        "Tampering": 144,
+        "Spoofing": 104,
+        "Elevation of Privilege": 40
+      },
+      "distribuicao_por_cwe": {
+        "CWE-328": {
+          "Tampering": 43,
+          "Spoofing": 4
+        },
+        "CWE-89": {
+          "Information Disclosure": 102,
+          "Tampering": 9
+        },
+        "CWE-79": {
+          "Information Disclosure": 107,
+          "Tampering": 3,
+          "Spoofing": 1
+        },
+        "CWE-330": {
+          "Spoofing": 94,
+          "Tampering": 2
+        },
+        "CWE-327": {
+          "Tampering": 42,
+          "Information Disclosure": 1
+        },
+        "CWE-78": {
+          "Elevation of Privilege": 40
+        },
+        "CWE-22": {
+          "Information Disclosure": 34,
+          "Tampering": 8
+        },
+        "CWE-90": {
+          "Information Disclosure": 12
+        },
+        "CWE-501": {
+          "Tampering": 28,
+          "Spoofing": 1
+        },
+        "CWE-614": {
+          "Spoofing": 4,
+          "Tampering": 9
+        },
+        "CWE-643": {
+          "Information Disclosure": 4
+        }
+      }
+    }
+  }
+}
