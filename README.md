@@ -21,6 +21,13 @@ O projeto utiliza:
 - **Groq LLM** (Llama-3.3-70b) para análise e reasoning
 - **Dataset OWASP Benchmark** para treinamento e validação
 
+Os selos considerados são:
+
+- Artefatos Disponíveis (SeloD)
+- Artefatos Funcionais (SeloF)
+- Artefatos Sustentáveis (SeloS)
+- Experimentos Reprodutíveis (SeloR)
+
 ---
 
 ## 🎯 Objetivo
