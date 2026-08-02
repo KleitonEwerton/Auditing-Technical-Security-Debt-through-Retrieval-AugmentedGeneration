@@ -1,5 +1,16 @@
 # Agente de Análise de Dívida de Segurança Técnica (Security Debt)
 
+## Autores
+
+- Kleiton Ewerton de Oliveira - kleitonewertonoliveira@gmail.com
+- Gleiph Ghiotto Lima de Menezes - gleiph.ghiotto@ufjf.br
+- André Luiz de Oliveira - andre.oliveira@ufjf.br
+
+## Abstract
+
+Technical Security Debt (TSD) refers to latent vulnerabilities that may not immediately compromise software functionality but progressively weaken its defenses. Conventional Static Application Security Testing (SAST) tools provide the basis for vulnerability detection and remain essential in secure development workflows. However, complementary semantic layers can support
+contextualizing the findings in terms of data flows, attack patterns, and architectural impact. In this paper, we propose a neuro-symbolic approach for auditing TSD by integrating Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), and security ontologies. Our approach uses the CWE → CAPEC → STRIDE chain as the supporting structure to link implementation-level weaknesses to attack patterns and preliminary architectural threat hypotheses. We use the Open Worldwide Application Security Project (OWASP) Benchmark v1.2, we built a pipeline that enriches code fragments with ontological metadata and retrieves semantically similar examples during inference. The RAG-assisted configuration achieved 90.88% accuracy and a weighted F1-score of 0.9142 in CWE classification, outperforming an LLM-only baseline by 20.44% points in accuracy. A paired McNemar test confirmed that this improvement was statistically significant (p = 3.85 × 10−34). The results indicate that retrieval and ontological grounding can reduce semantic drift in vulnerability auditing, while STRIDE-based threat mapping should be interpreted as a preliminary contextualization layer rather than as a definitive threat-modeling oracle.
+
 ## 📋 Descrição
 
 **agente-debt-sec** é um sistema inteligente baseado em **RAG (Retrieval-Augmented Generation)** e **LLM** que analisa código Java em busca de **Dívida de Segurança Técnica (Security Debt)** e vulnerabilidades. 
