@@ -1,82 +1,89 @@
 # Auditoria de Dívida de Segurança Técnica via Recuperação Aumentada por Geração (RAG)
 
+Este artefato acompanha o artigo *"Auditing Technical Security Debt through Retrieval-Augmented Generation: A CWE-, CAPEC-, and STRIDE-Based Approach"*, que propõe uma abordagem neuro-simbólica para auditoria de vulnerabilidades em código Java, integrando LLMs, RAG e ontologias de segurança (CWE → CAPEC → STRIDE). O artefato contém o dataset derivado do OWASP Benchmark v1.2 (2.740 amostras), a base de conhecimento vetorial (ChromaDB), os resultados experimentais completos (548 predições de cada configuração) e os scripts de análise estatística que reproduzem as três reivindicações principais do artigo: acurácia RAG de 90,88% vs. 70,44% do baseline LLM-only (+20,44 pp), F1-score ponderado de 0,9142, e significância estatística confirmada pelo teste de McNemar (p = 3,85 × 10⁻³⁴).
+
 **Autores:**
-- Kleiton Ewerton de Oliveira — kleitonewertonoliveira@gmail.com
-- Gleiph Ghiotto Lima de Menezes — gleiph.ghiotto@ufjf.br
-- André Luiz de Oliveira — andre.oliveira@ufjf.br
+- Kleiton Ewerton de Oliveira - kleitonewertonoliveira@gmail.com
+- Gleiph Ghiotto Lima de Menezes - gleiph.ghiotto@ufjf.br
+- André Luiz de Oliveira - andre.oliveira@ufjf.br
 
-## Abstract
+## Resumo
 
-Technical Security Debt (TSD) refers to latent vulnerabilities that may not immediately compromise software functionality but progressively weaken its defenses. Conventional Static Application Security Testing (SAST) tools provide the basis for vulnerability detection and remain essential in secure development workflows. However, complementary semantic layers can support contextualizing the findings in terms of data flows, attack patterns, and architectural impact. In this paper, we propose a neuro-symbolic approach for auditing TSD by integrating Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), and security ontologies. Our approach uses the CWE → CAPEC → STRIDE chain as the supporting structure to link implementation-level weaknesses to attack patterns and preliminary architectural threat hypotheses. We use the Open Worldwide Application Security Project (OWASP) Benchmark v1.2 — a dataset with 2,740 Java code samples — and built a pipeline that enriches code fragments with ontological metadata and retrieves semantically similar examples during inference. The RAG-assisted configuration achieved **90.88% accuracy** and a weighted F1-score of **0.9142** in CWE classification, outperforming an LLM-only baseline by **20.44 percentage points** in accuracy. A paired McNemar test confirmed that this improvement was statistically significant (p = 3.85 × 10⁻³⁴). The results indicate that retrieval and ontological grounding can reduce semantic drift in vulnerability auditing, while STRIDE-based threat mapping should be interpreted as a preliminary contextualization layer rather than as a definitive threat-modeling oracle.
+A Dívida de Segurança Técnica (TSD, do ingles *Technical Security Debt*) refere-se a vulnerabilidades latentes que podem não comprometer imediatamente a funcionalidade do software, mas que progressivamente enfraquecem suas defesas. As ferramentas convencionais de Teste Estatico de Segurança de Aplicacao (SAST) fornecem a base para a deteccao de vulnerabilidades e permanecem essenciais nos fluxos de desenvolvimento seguro. No entanto, camadas semânticas complementares podem apoiar a contextualizacao dos achados em termos de fluxos de dados, padroes de ataque e impacto arquitetural. Neste artigo, propomos uma abordagem neuro-simbolica para auditoria de TSD integrando Grandes Modelos de Linguagem (LLMs), Geração Aumentada por Recuperação (RAG) e ontologias de seguranca. Nossa abordagem utiliza a cadeia CWE -> CAPEC -> STRIDE como estrutura de suporte para vincular fraquezas no nivel de implementação a padroes de ataque e hipoteses preliminares de ameacas arquiteturais. Utilizamos o OWASP Benchmark v1.2 - um dataset com 2.740 amostras de codigo Java - e construímos um pipeline que enriquece fragmentos de codigo com metadados ontologicos e recupera exemplos semânticamente similares durante a inferência. A configuração assistida por RAG alcancou **90,88% de acuracia** e um F1-score ponderado de **0,9142** na classificacao CWE, superando um baseline LLM-only em **20,44 pontos percentuais** de acuracia. Um teste de McNemar pareado confirmou que essa melhoria foi estatísticamente significativa (p = 3,85 x 10^-34). Os resultados indicam que a recuperação e o ancoramento ontologico podem reduzir a deriva semântica na auditoria de vulnerabilidades, enquanto o mapeamento de ameacas baseado em STRIDE deve ser interpretado como uma camada de contextualizacao preliminar, e não como um oraculo definitivo de modelagem de ameacas.
 
 ---
 
 # Estrutura do README
 
-Este README está organizado da seguinte forma:
+Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 
-- [Estrutura do README](#estrutura-do-readme) — organização deste documento e do repositório
-- [Selos Considerados](#selos-considerados) — selos solicitados para avaliação
-- [Informações básicas](#informações-básicas) — ambiente de execução, hardware e software
-- [Dependências](#dependências) — bibliotecas e versões necessárias
-- [Preocupações com segurança](#preocupações-com-segurança) — riscos e cuidados durante a execução
-- [Instalação](#instalação) — passo a passo para configurar o ambiente
-- [Teste mínimo](#teste-mínimo) — verificação rápida de funcionamento
-- [Experimentos](#experimentos) — reprodução das reivindicações do artigo
-- [LICENSE](#license) — licença do projeto
+- [Estrutura do README](#estrutura-do-readme) - organização deste documento e do repositório
+- [Selos Considerados](#selos-considerados) - selos solicitados para avaliação
+- [Informações Básicas](#informações-básicas) - ambiente de execução, hardware e software
+- [Dependências](#dependências) - bibliotecas e versões necessárias
+- [Preocupações com Segurança](#preocupações-com-seguranca) - riscos e cuidados durante a execução
+- [Instalação](#instalação) - passo a passo para configurar o ambiente
+- [Teste Mínimo](#teste-mínimo) - verificação rapida de funcionamento
+- [Experimentos](#experimentos) - reprodução das reivindicações do artigo
+- [LICENSE](#license) - licenca do projeto
 
 ### Estrutura do Repositório
 
 ```
 .
-├── 00_gerar_dataset_final.py          # ETL: gera dataset a partir do OWASP Benchmark Java
-├── 01_construir_base_conhecimento.py  # Vetoriza dados de treino e persiste no ChromaDB
-├── 02_retreinar_stride.py             # Executa o pipeline RAG + LLM (gera resultados_rag.json)
-├── 02_retreinar_stride_baseline.py    # Executa o pipeline LLM-only / baseline (gera resultados_llm.json)
-├── 03_analisar_resultados.py          # Análise básica de resultados individuais
-├── 04_analise_avancada.py             # Métricas avançadas: F1, matriz de confusão, análise de erros
-├── 05_reprocessar_resultados.py       # Reprocessa/corrige resultados já gerados
-├── 06_comparar_resultados_llm_rag.py  # Compara accuracy LLM vs RAG → comparacao_llm_vs_rag.json
-├── 07_mcnemar_test.py                 # Teste estatístico de McNemar → mcnemar_report.json
-├── dataset_completo_mestrado.jsonl    # Dataset completo OWASP Benchmark v1.2 (2.740 exemplos)
-├── dataset_teste_reservado.jsonl      # 20% reservados para teste (548 exemplos)
-├── dataset_treino.jsonl               # Placeholder — dados de treino estão vetorizados em vectorstore_db/
-├── expectedresults-1.2.csv            # Ground truth do OWASP Benchmark v1.2
-├── cwec_v4.18.xml                     # Common Weakness Enumeration v4.18 (MITRE)
-├── capec_v3.9.xml                     # Common Attack Pattern Enumeration v3.9 (MITRE)
-├── resultados_llm.json                # Resultados gerados pelo baseline LLM-only (548 casos)
-├── resultados_rag.json                # Resultados gerados pelo pipeline RAG (548 casos)
-├── analise_llm.json                   # Análise básica dos resultados LLM
-├── analise_rag.json                   # Análise básica dos resultados RAG
-├── analise_llm_avancada.json          # Métricas avançadas do LLM (F1, matriz de confusão)
-├── analise_rag_avancada.json          # Métricas avançadas do RAG (F1, matriz de confusão)
-├── comparacao_llm_vs_rag.json         # Comparação lado a lado LLM vs RAG
-├── mcnemar_report.json                # Resultado do teste de McNemar
-├── example.env                        # Exemplo de arquivo de variáveis de ambiente
-├── requirements.txt                   # Dependências Python com versões
-├── LICENSE                            # Licença MIT
-└── README.md                          # Este arquivo
+|-- 00_gerar_dataset_final.py          # ETL opcional - veja nota (*) abaixo
+|-- 01_construir_base_conhecimento.py  # Vetoriza dados de treino e persiste no ChromaDB
+|-- 02_retreinar_stride.py             # Executa o pipeline RAG + LLM (gera resultados_rag.json)
+|-- 02_retreinar_stride_baseline.py    # Executa o pipeline LLM-only / baseline (gera resultados_llm.json)
+|-- 03_analisar_resultados.py          # Analise basica de resultados individuais
+|-- 04_analise_avancada.py             # Métricas avançadas: F1, matriz de confusão, analise de erros
+|-- 05_reprocessar_resultados.py       # Reprocessa/corrige resultados ja gerados
+|-- 06_comparar_resultados_llm_rag.py  # Compara accuracy LLM vs RAG -> comparação_llm_vs_rag.json
+|-- 07_mcnemar_test.py                 # Teste estatístico de McNemar -> mcnemar_report.json
+|-- dataset_completo_mestrado.jsonl    # Dataset completo OWASP Benchmark v1.2 (2.740 exemplos)
+|-- dataset_teste_reservado.jsonl      # 20% reservados para teste (548 exemplos)
+|-- dataset_treino.jsonl               # Placeholder - dados de treino estão vetorizados em vectorstore_db/
+|-- expectedresults-1.2.csv            # Ground truth do OWASP Benchmark v1.2
+|-- cwec_v4.18.xml                     # Common Weakness Enumeration v4.18 (MITRE)
+|-- capec_v3.9.xml                     # Common Attack Pattern Enumeration v3.9 (MITRE)
+|-- resultados_llm.json                # Resultados gerados pelo baseline LLM-only (548 casos)
+|-- resultados_rag.json                # Resultados gerados pelo pipeline RAG (548 casos)
+|-- analise_llm.json                   # Analise basica dos resultados LLM
+|-- analise_rag.json                   # Analise basica dos resultados RAG
+|-- analise_llm_avançada.json          # Métricas avançadas do LLM (F1, matriz de confusao)
+|-- analise_rag_avançada.json          # Métricas avançadas do RAG (F1, matriz de confusao)
+|-- analise_avançada_métricas.json     # Métricas avançadas consolidadas
+|-- comparação_llm_vs_rag.json         # Comparação lado a lado LLM vs RAG
+|-- mcnemar_report.json                # Resultado do teste de McNemar
+|-- example.env                        # Exemplo de arquivo de variaveis de ambiente
+|-- requirements.txt                   # Dependências Python com versões
+|-- LICENSE                            # Licenca MIT
+`-- README.md                          # Este arquivo
 ```
 
-**Tabela de scripts — entradas, saídas e finalidade:**
+> **(*) Nota sobre `00_gerar_dataset_final.py`:** Este script e **opcional** e **NÃO deve ser executado dentro deste repositório**. Ele foi utilizado para gerar o `dataset_completo_mestrado.jsonl` a partir do repositório [OWASP BenchmarkJava v1.2](https://github.com/OWASP-Benchmark/BenchmarkJava), e deve ser copiado para a **raiz daquele repositório** caso seja necessário regenerar o dataset. Veja detalhes na secao [Sobre o dataset](#sobre-o-dataset-owasp-benchmark-v12).
+
+---
+
+**Tabela de scripts - entradas, saídas e finalidade:**
 
 | Script | Entrada | Saída | Finalidade | Reivindicação |
 |---|---|---|---|---|
-| `00_gerar_dataset_final.py` | Arquivos `.java` do OWASP Benchmark, `expectedresults-1.2.csv`, `cwec_v4.18.xml`, `capec_v3.9.xml` | `dataset_completo_mestrado.jsonl` | ETL: extrai, enriquece e serializa o dataset | — |
-| `01_construir_base_conhecimento.py` | `dataset_completo_mestrado.jsonl` | `vectorstore_db/` (ChromaDB), `dataset_teste_reservado.jsonl` | Vetoriza e indexa 80% dos dados para uso pelo RAG | — |
-| `02_retreinar_stride.py` | `vectorstore_db/`, `dataset_teste_reservado.jsonl`, API Groq | `resultados_rag.json` | Executa o pipeline RAG + LLM sobre os 548 casos de teste | #1, #2 |
-| `02_retreinar_stride_baseline.py` | `dataset_teste_reservado.jsonl`, API Groq | `resultados_llm.json` | Executa o baseline LLM-only sobre os 548 casos de teste | #1 |
-| `03_analisar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Saída no terminal | Análise rápida de resultados individuais | — |
-| `04_analise_avancada.py` | `resultados_rag.json` ou `resultados_llm.json` | `analise_avancada_metricas.json` (padrão) | F1-score ponderado, matriz de confusão, análise de erros | #2 |
-| `05_reprocessar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Arquivo de resultados corrigido | Reprocessa respostas com parse falho | — |
-| `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparacao_llm_vs_rag.json` | Compara accuracy e cobertura STRIDE lado a lado | #1 |
+| `00_gerar_dataset_final.py` | Executar na raiz do [OWASP BenchmarkJava](https://github.com/OWASP-Benchmark/BenchmarkJava): arquivos `.java` em `src/main/java/.../testcode/`, `expectedresults-1.2.csv`, `cwec_v4.18.xml`, `capec_v3.9.xml` | `dataset_completo_mestrado.jsonl` | ETL **opcional**: extrai, enriquece e serializa o dataset. **Nao e necessário para replicação** (dataset ja incluso) | - |
+| `01_construir_base_conhecimento.py` | `dataset_completo_mestrado.jsonl` | `vectorstore_db/` (ChromaDB), `dataset_teste_reservado.jsonl` | Vetoriza e indexa 80% dos dados para uso pelo RAG | - |
+| `02_retreinar_stride.py` | `vectorstore_db/`, `dataset_teste_reservado.jsonl`, API Groq | `resultados_rag.json` | Executa o pipeline RAG + LLM sobre os 548 casos de teste. **Nao e necessário para replicação** (resultados ja inclusos) | #1, #2 |
+| `02_retreinar_stride_baseline.py` | `dataset_teste_reservado.jsonl`, API Groq | `resultados_llm.json` | Executa o baseline LLM-only sobre os 548 casos de teste. **Nao e necessário para replicação** (resultados ja inclusos) | #1 |
+| `03_analisar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Saída no terminal | Analise rapida de resultados individuais | - |
+| `04_analise_avancada.py` | `resultados_rag.json` ou `resultados_llm.json` | `analise_avançada_métricas.json` (padrão) | F1-score ponderado, matriz de confusão, analise de erros | #2 |
+| `05_reprocessar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Arquivo de resultados corrigido | Reprocessa respostas com parse falho | - |
+| `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparação_llm_vs_rag.json` | Compara accuracy e cobertura STRIDE lado a lado | #1 |
 | `07_mcnemar_test.py` | `resultados_llm.json`, `resultados_rag.json` | `mcnemar_report.json` | Teste estatístico pareado de McNemar | #3 |
 
 ---
 
 # Selos Considerados
 
-Os selos considerados são:
+Os selos considerados sao:
 
 - **Artefatos Disponíveis (SeloD)**
 - **Artefatos Funcionais (SeloF)**
@@ -85,31 +92,35 @@ Os selos considerados são:
 
 ---
 
-# Informações básicas
+# Informações Básicas
 
 ## Hardware
 
 Os experimentos foram executados em:
 
 - **CPU:** Intel Core i7 (ou equivalente), mínimo 4 cores
-- **RAM:** Mínimo 8 GB (recomendado 16 GB para execução completa do pipeline RAG)
-- **Armazenamento:** Mínimo 15 GB livres (datasets + embeddings ChromaDB + modelos Sentence Transformers ~1.5 GB)
-- **Internet:** Necessária para download do modelo de embeddings na primeira execução e para chamadas à API Groq
+- **RAM:** Mínimo 8 GB (recomendado 16 GB para execução completa do pipeline RAG com ChromaDB)
+- **Armazenamento:** Mínimo 15 GB livres (datasets + embeddings ChromaDB + modelo Sentence Transformers ~1,5 GB)
+- **Internet:** Necessaria para download do modelo de embeddings na primeira execução (`sentence-transformers/all-MiniLM-L6-v2`, ~90 MB via HuggingFace Hub) e para chamadas a API Groq
 
-> **Nota para revisores:** Os scripts de análise e comparação (`06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py`) **não requerem GPU, API externa nem os modelos de embeddings** — operam apenas sobre os arquivos JSON de resultados já entregues. Para reproduzir as reivindicações do artigo, esses dois scripts são suficientes e executam em segundos em qualquer máquina.
+> **Nota para revisores:** Os scripts de analise e comparação (`04_analise_avancada.py`, `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py`) **não requerem GPU, API externa nem modelos de embeddings** - operam apenas sobre os arquivos JSON de resultados ja entregues. Para reproduzir as reivindicações do artigo, esses scripts são suficientes e executam em menos de 2 minutos em qualquer maquina com Python.
 
 ## Software
 
-- **Sistema Operacional:** Windows 10/11, Linux (Ubuntu 20.04+) ou macOS 12+
-- **Python:** 3.10 ou superior (testado com Python 3.10 e 3.12)
-- **Git:** Para clonar o repositório
-- **Chave de API Groq:** Necessária **apenas** para re-executar os scripts `02_retreinar_stride.py` e `02_retreinar_stride_baseline.py` (geração de novos resultados). Para reproduzir as reivindicações a partir dos resultados já fornecidos, **não é necessária**.
+| Componente | Versão requerida | Observacao |
+|---|---|---|
+| Python | >= 3.10 | Testado com Python 3.10 e 3.12 |
+| Sistema Operacional | Windows 10/11, Linux (Ubuntu 20.04+) ou macOS 12+ | Sem requisito especifico de OS |
+| Git | Qualquer versão recente | Para clonar o repositório |
+| Chave de API Groq | - | Necessaria **apenas** para re-executar os scripts `02_*`. Gratuita em https://console.groq.com/ |
 
-### Obtendo a chave de API Groq (opcional para SeloR)
+**Modelo LLM utilizado nos experimentos:** `llama-3.3-70b-versatile` via API Groq.
 
-A chave Groq é gratuita e pode ser obtida em: https://console.groq.com/
+### Obtendo a chave de API Groq (opcional)
 
-O modelo utilizado nos experimentos foi: **`llama-3.3-70b-versatile`** via API Groq.
+A chave Groq e gratuita e pode ser obtida em: https://console.groq.com/
+
+> A chave e necessária **apenas** se voce deseja re-gerar os resultados experimentais executando `02_retreinar_stride.py` e/ou `02_retreinar_stride_baseline.py`. Para reproduzir as tres reivindicações do artigo a partir dos artefatos ja entregues, **a chave não e necessária**.
 
 ---
 
@@ -117,54 +128,79 @@ O modelo utilizado nos experimentos foi: **`llama-3.3-70b-versatile`** via API G
 
 ## Dependências Python
 
-Todas as dependências estão listadas em `requirements.txt`. Instale via:
+Todas as dependências estão listadas em [`requirements.txt`](requirements.txt). Instale via:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-| Pacote | Versão mínima | Finalidade |
+| Pacote | Versão minima | Finalidade |
 |---|---|---|
-| `langchain` | ≥ 0.3.0 | Framework de orquestração LLM |
-| `langchain-core` | ≥ 0.3.0 | Componentes base do LangChain |
-| `langchain-chroma` | ≥ 0.1.4 | Integração ChromaDB com LangChain |
-| `langchain-huggingface` | ≥ 0.1.2 | Integração HuggingFace Embeddings |
-| `langchain-groq` | ≥ 0.2.1 | Integração com a API Groq |
-| `langchain-text-splitters` | ≥ 0.3.0 | Divisão de documentos em chunks |
-| `chromadb` | ≥ 0.5.0 | Banco de vetores persistente |
-| `sentence-transformers` | ≥ 3.0.0 | Modelo de embeddings semânticos |
-| `python-dotenv` | ≥ 1.0.0 | Carregamento de variáveis de ambiente |
-| `tqdm` | ≥ 4.66.0 | Barras de progresso |
-| `numpy` | ≥ 1.26.0 | Computação numérica (análise avançada) |
-| `scikit-learn` | ≥ 1.5.0 | Métricas de classificação (F1, etc.) |
+| `langchain` | >= 0.3.0 | Framework de orquestracao LLM |
+| `langchain-core` | >= 0.3.0 | Componentes base do LangChain |
+| `langchain-chroma` | >= 0.1.4 | Integracao ChromaDB com LangChain |
+| `langchain-huggingface` | >= 0.1.2 | Integracao HuggingFace Embeddings |
+| `langchain-groq` | >= 0.2.1 | Integracao com a API Groq |
+| `langchain-text-splitters` | >= 0.3.0 | Divisão de documentos em chunks |
+| `chromadb` | >= 0.5.0 | Banco de vetores persistente |
+| `sentence-transformers` | >= 3.0.0 | Modelo de embeddings semânticos (`all-MiniLM-L6-v2`) |
+| `python-dotenv` | >= 1.0.0 | Carregamento de variaveis de ambiente |
+| `tqdm` | >= 4.66.0 | Barras de progresso |
+| `numpy` | >= 1.26.0 | Computacao numerica (`04_analise_avancada.py`) |
+| `scikit-learn` | >= 1.5.0 | Métricas de classificacao: F1, matriz de confusão (`04_analise_avancada.py`) |
 
-## Dados externos (já incluídos no repositório)
+> **Nota:** `numpy` e `scikit-learn` são utilizados por `04_analise_avancada.py`. Os scripts `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py` (teste mínimo) usam exclusivamente a biblioteca padrão do Python e **não requerem instalação de dependências externas**.
 
-Os seguintes arquivos estão incluídos e **não precisam ser baixados**:
+## Dados externos (ja incluidos no repositório)
 
-| Arquivo | Fonte | Descrição |
+Os seguintes arquivos estão incluidos e **não precisam ser baixados ou gerados**:
+
+| Arquivo | Fonte | Descricao |
 |---|---|---|
-| `dataset_completo_mestrado.jsonl` | Gerado a partir do OWASP Benchmark v1.2 | 2.740 exemplos de código Java anotados |
-| `dataset_teste_reservado.jsonl` | Split 20% do dataset completo | 548 exemplos usados nos experimentos |
-| `expectedresults-1.2.csv` | OWASP Benchmark Java v1.2 | Ground truth oficial do benchmark |
-| `cwec_v4.18.xml` | MITRE CWE v4.18 | Definições de fraquezas de segurança |
-| `capec_v3.9.xml` | MITRE CAPEC v3.9 | Padrões de ataque |
+| `dataset_completo_mestrado.jsonl` | Gerado a partir do OWASP Benchmark v1.2 | 2.740 exemplos de codigo Java anotados com CWE, CAPEC e metadados ontologicos |
+| `dataset_teste_reservado.jsonl` | Split 20% do dataset completo (seed=42) | 548 exemplos usados nos experimentos de avaliação |
+| `expectedresults-1.2.csv` | [OWASP Benchmark Java v1.2](https://github.com/OWASP-Benchmark/BenchmarkJava) | Ground truth oficial do benchmark |
+| `cwec_v4.18.xml` | [MITRE CWE v4.18](https://cwe.mitre.org/data/downloads.html) | Definicoes de fraquezas de seguranca |
+| `capec_v3.9.xml` | [MITRE CAPEC v3.9](https://capec.mitre.org/data/downloads.html) | Padroes de ataque |
 | `resultados_llm.json` | Gerado pelos experimentos | 548 predições do baseline LLM-only |
 | `resultados_rag.json` | Gerado pelos experimentos | 548 predições do pipeline RAG |
+| `vectorstore_db/` | Gerado por `01_construir_base_conhecimento.py` | Base de conhecimento vetorial (ChromaDB) com os 2.192 exemplos de treino |
 
-> **Sobre o dataset:** O `dataset_completo_mestrado.jsonl` foi gerado a partir do repositório [OWASP BenchmarkJava](https://github.com/OWASP-Benchmark/BenchmarkJava) v1.2, que contém 2.740 testes unitários de vulnerabilidade Java. A divisão 80/20 (aleatória com `random.seed(42)`) resultou em 2.192 exemplos de treino (vetorizados no ChromaDB) e 548 exemplos de teste. O arquivo `dataset_treino.jsonl` não contém os dados de treino em formato JSONL porque eles são transformados em vetores e persistidos diretamente no `vectorstore_db/` pelo script `01_construir_base_conhecimento.py`.
+## Sobre o dataset OWASP Benchmark v1.2
+
+O **OWASP Benchmark Java v1.2** contem 2.740 testes unitarios de vulnerabilidade Java, cobrindo 11 categorias de CWE. O dataset completo (`dataset_completo_mestrado.jsonl`) foi gerado a partir dos arquivos `.java` desse benchmark usando o script `00_gerar_dataset_final.py`.
+
+**Divisão dos dados:**
+- **Total:** 2.740 exemplos (corresponde ao OWASP Benchmark v1.2 completo)
+- **Treino (80%):** 2.192 exemplos - vetorizados e persistidos no `vectorstore_db/` pelo script `01_construir_base_conhecimento.py`
+- **Teste (20%):** 548 exemplos - armazenados em `dataset_teste_reservado.jsonl` e utilizados nos experimentos
+
+> A divisão foi feita com `random.seed(42)` para garantir reprodutibilidade. O arquivo `dataset_treino.jsonl` e um *placeholder* (arquivo de referencia vazio): os dados de treino **não são armazenados em formato JSONL**, pois são transformados diretamente em vetores e persistidos no `vectorstore_db/` pelo script `01_construir_base_conhecimento.py`.
+
+### Como o dataset foi gerado (opcional - para regeneracao)
+
+O script `00_gerar_dataset_final.py` e responsavel pelo ETL de geração do dataset. Ele **NÃO deve ser executado dentro deste repositório**. Para regenerar o dataset do zero:
+
+1. Clone o repositório [OWASP BenchmarkJava v1.2](https://github.com/OWASP-Benchmark/BenchmarkJava).
+2. Copie para a raiz do BenchmarkJava os arquivos: `00_gerar_dataset_final.py`, `expectedresults-1.2.csv`, `cwec_v4.18.xml` e `capec_v3.9.xml`.
+3. Execute `python 00_gerar_dataset_final.py` a partir da raiz do BenchmarkJava.
+4. Copie o `dataset_completo_mestrado.jsonl` gerado de volta para a raiz deste repositório.
+
+> Este script usa apenas a biblioteca padrão do Python (sem dependências externas) e pode ser executado com Python 3.10+.
 
 ---
 
-# Preocupações com segurança
+# Preocupações com Segurança
 
-- **Chave de API Groq:** A chave de API deve ser armazenada exclusivamente no arquivo `.env` (nunca comitada no repositório). O `.gitignore` já exclui o arquivo `.env`. Revogue e regenere a chave após o uso em ambientes compartilhados.
+- **Chave de API Groq:** A chave de API deve ser armazenada exclusivamente no arquivo `.env` (nunca comitada no repositório). O `.gitignore` ja exclui o arquivo `.env`. Revogue e regenere a chave apos o uso em ambientes compartilhados.
 
-- **Dados de código Java:** O dataset contém fragmentos de código propositalmente vulneráveis do OWASP Benchmark. Esses fragmentos são material de estudo e não devem ser executados em produção.
+- **Dados de codigo Java:** O dataset contem fragmentos de codigo **propositalmente vulneraveis** do OWASP Benchmark. Esses fragmentos são material de estudo e **não devem ser executados em produção**.
 
-- **API externa (Groq):** Os scripts `02_retreinar_stride.py` e `02_retreinar_stride_baseline.py` enviam fragmentos de código Java para a API Groq. Certifique-se de estar ciente das [políticas de privacidade da Groq](https://groq.com/privacy-policy/) antes de executar esses scripts.
+- **API externa (Groq):** Os scripts `02_retreinar_stride.py` e `02_retreinar_stride_baseline.py` enviam fragmentos de codigo Java para a API Groq. Certifique-se de estar ciente das [politicas de privacidade da Groq](https://groq.com/privacy-policy/) antes de executar esses scripts.
 
-- **Sem exposição de portas:** Este artefato não expõe serviços de rede locais. Todos os componentes são processos Python locais.
+- **Sem exposicao de portas:** Este artefato não expoe servicos de rede locais. Todos os componentes são processos Python locais.
+
+- **ChromaDB local:** O banco de vetores `vectorstore_db/` e armazenado localmente e não requer autenticacao.
 
 ---
 
@@ -196,16 +232,20 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> A primeira execução pode demorar alguns minutos pois o modelo de embeddings `sentence-transformers/all-MiniLM-L6-v2` (~90 MB) é baixado automaticamente do HuggingFace Hub.
+> A primeira execução pode demorar alguns minutos pois o modelo de embeddings `sentence-transformers/all-MiniLM-L6-v2` (~90 MB) e baixado automaticamente do HuggingFace Hub na primeira vez que `01_construir_base_conhecimento.py` e executado. Os scripts de analise (`04`, `06`, `07`) não realizam esse download.
 
-## 4. Configurar variáveis de ambiente
+## 4. Configurar variaveis de ambiente (opcional)
 
-> **Para reproduzir as reivindicações do artigo a partir dos resultados já entregues, este passo é opcional.** A chave de API só é necessária para re-gerar os resultados.
+> **Para reproduzir as reivindicações do artigo a partir dos resultados ja entregues, este passo e opcional.** A chave de API so e necessária para re-gerar os resultados com os scripts `02_*`.
 
 Copie o arquivo de exemplo e preencha com sua chave Groq:
 
 ```bash
+# Linux/macOS
 cp example.env .env
+
+# Windows (PowerShell)
+Copy-Item example.env .env
 ```
 
 Edite o arquivo `.env`:
@@ -216,11 +256,13 @@ GROQ_API_KEY=sua_chave_groq_aqui
 
 ---
 
-# Teste mínimo
+# Teste Mínimo
 
-Este teste verifica que o ambiente está corretamente instalado executando os dois scripts de análise que **não dependem de API externa** e que recalculam as métricas principais a partir dos resultados já entregues.
+Este teste verifica que o ambiente esta corretamente instalado executando dois scripts de analise que **não dependem de API externa, GPU ou modelos de embeddings** e que recalculam as métricas principais a partir dos resultados ja entregues.
 
-## Passo 1 — Verificar comparação LLM vs RAG
+> **Pre-requisito:** Apenas Python instalado. Nao e necessário sequer o `pip install -r requirements.txt` para este teste mínimo - `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py` usam exclusivamente a biblioteca padrão do Python.
+
+## Passo 1 - Verificar comparação LLM vs RAG
 
 ```bash
 python 06_comparar_resultados_llm_rag.py
@@ -230,7 +272,7 @@ python 06_comparar_resultados_llm_rag.py
 
 ```
 ================================================================================
-📊 COMPARAÇÃO LLM vs RAG
+COMPARACAO LLM vs RAG
 ================================================================================
 LLM  - CWE Accuracy: 70.44% | STRIDE Coverage: 100.00%
 RAG  - CWE Accuracy: 90.88% | STRIDE Coverage: 100.00%
@@ -238,10 +280,10 @@ DELTA - CWE Accuracy: +20.44 pp | STRIDE Coverage: +0.00 pp
 Melhor em CWE: RAG
 Melhor em STRIDE: Empate
 
-📁 Relatório salvo em: comparacao_llm_vs_rag.json
+Relatorio salvo em: comparação_llm_vs_rag.json
 ```
 
-## Passo 2 — Verificar teste de McNemar
+## Passo 2 - Verificar teste de McNemar
 
 ```bash
 python 07_mcnemar_test.py
@@ -258,29 +300,28 @@ python 07_mcnemar_test.py
   "both_wrong": 50,
   "discordant_b": 0,
   "discordant_c": 112,
-  "exact_two_sided_p": 3.85e-34,
-  ...
+  "exact_two_sided_p": 3.85e-34
 }
 ```
 
-Se ambos os scripts produzirem saídas similares às acima, o ambiente está funcionando corretamente.
+Se ambos os scripts produzirem saídas similares as acima, o ambiente esta funcionando corretamente.
 
 ---
 
 # Experimentos
 
-Esta seção descreve como reproduzir as três reivindicações principais do artigo. Os resultados podem ser reproduzidos de **duas formas**:
+Esta secao descreve como reproduzir as tres reivindicações principais do artigo. Os resultados podem ser reproduzidos de **duas formas**:
 
-- **Forma A (rápida, sem API):** A partir dos arquivos de resultados já entregues (`resultados_rag.json` e `resultados_llm.json`). Tempo estimado: < 2 minutos no total.
-- **Forma B (completa, requer API Groq):** Re-executando os pipelines RAG e LLM do zero contra os 548 casos de teste. Tempo estimado: 2–4 horas (rate limiting da API Groq gratuita).
+- **Forma A (rapida, sem API - recomendada para revisores):** A partir dos arquivos de resultados ja entregues (`resultados_rag.json` e `resultados_llm.json`). Tempo estimado: **< 2 minutos** no total. **Nao requer chave de API, GPU ou modelos de embeddings.**
+- **Forma B (completa, requer API Groq):** Re-executando os pipelines RAG e LLM do zero contra os 548 casos de teste. Tempo estimado: **2-4 horas** (sujeito ao rate limiting da API Groq gratuita).
 
-> **Recomendação para revisores:** Use a **Forma A** para verificar as reivindicações. A Forma B é fornecida para transparência metodológica completa.
+> **Recomendacao para revisores:** Use a **Forma A** para verificar as reivindicações. A Forma B e fornecida para transparencia metodologica completa, mas **não e necessária** para confirmar os resultados do artigo - todos os artefatos intermediarios ja estão disponíveis no repositório.
 
 ---
 
-## Reivindicação #1 — Acurácia RAG 90.88% vs LLM 70.44% (delta +20.44 pp)
+## Reivindicação #1 - Acuracia RAG 90,88% vs LLM 70,44% (delta +20,44 pp)
 
-**Arquivo de configuração relevante:** nenhum — opera sobre os resultados já entregues.
+**Arquivo de configuração relevante:** nenhum - opera sobre os resultados ja entregues.
 
 **Comando (Forma A):**
 
@@ -288,7 +329,7 @@ Esta seção descreve como reproduzir as três reivindicações principais do ar
 python 06_comparar_resultados_llm_rag.py
 ```
 
-**Arquivo de saída:** `comparacao_llm_vs_rag.json`
+**Arquivo de saída:** `comparação_llm_vs_rag.json`
 
 **Resultado esperado:**
 
@@ -299,9 +340,9 @@ DELTA - CWE Accuracy: +20.44 pp
 Melhor em CWE: RAG
 ```
 
-**Recursos necessários:** < 100 MB RAM, < 10 segundos de execução.
+**Recursos necessários:** < 100 MB RAM, < 10 segundos de execução, sem dependências externas.
 
-**Comando (Forma B — re-geração completa):**
+**Comando (Forma B - re-geração completa):**
 
 ```bash
 # Passo B.1: Construir a base de conhecimento RAG (requer ~8 GB RAM, ~10 min)
@@ -317,46 +358,56 @@ python 02_retreinar_stride.py
 python 06_comparar_resultados_llm_rag.py
 ```
 
-> Os scripts B.2 e B.3 incluem salvamento automático após cada predição e suporte a retomada (`s/n`), permitindo interromper e continuar a execução.
+> **IMPORTANTE - Scripts 02 não são necessários para replicação:** Os scripts `02_retreinar_stride.py` e `02_retreinar_stride_baseline.py` **não precisam ser executados** para reproduzir as reivindicações do artigo. Os arquivos `resultados_rag.json` e `resultados_llm.json` ja estão inclusos no repositório e contem os 548 resultados completos dos experimentos originais. Execute esses scripts apenas se quiser re-gerar os resultados do zero por razoes de transparencia metodologica.
+
+> **Variacoes esperadas em novas execuções (Forma B):** LLMs são sistemas **não-deterministicos** - mesmo com o mesmo modelo e prompt, pequenas variacoes nas respostas são esperadas entre execuções distintas. Alem disso, modelos com capacidades superiores ou inferiores ao `llama-3.3-70b-versatile` produzirao resultados diferentes. Portanto, ao re-executar os scripts `02_*`, os valores exatos de acuracia e F1 podem diferir ligeiramente dos reportados no artigo. Isso e esperado e não invalida as conclusoes gerais.
+
+> **Inconsistencias e falhas durante a execução dos scripts 02 (Forma B):** Durante a execução dos pipelines RAG e LLM, podem ocorrer falhas pontuais, incluindo:
+>
+> - Respostas da LLM **fora do formato JSON esperado** ou **incompletas**
+> - **Timeout** na chamada a API (por instabilidade da LLM, da rede ou limites de rate da sua chave de API)
+> - Erros de parse que resultam em instâncias marcadas como falhas
+>
+> **Como proceder em caso de falha:** Os scripts incluem salvamento automatico apos cada predição e suporte a retomada interativa (s/n). Instancias com falha de parse podem ser reprocessadas com `05_reprocessar_resultados.py`. Se o timeout ou erro de API for persistente para determinadas instâncias, **execute o script novamente em um novo processo separado** - ele retomara automaticamente de onde parou, saltando os casos ja processados com sucesso.
 
 ---
 
-## Reivindicação #2 — F1-score ponderado de 0.9142 (configuração RAG)
+## Reivindicação #2 - F1-score ponderado de 0,9142 (configuração RAG)
 
-**Arquivo de configuração:** nenhum — opera sobre `resultados_rag.json` já entregue.
+**Arquivo de configuração:** nenhum - opera sobre `resultados_rag.json` ja entregue.
 
 **Comando:**
 
 ```bash
-python 04_analise_avancada.py --input resultados_rag.json --output analise_rag_avancada.json
+python 04_analise_avancada.py --input resultados_rag.json --output analise_rag_avançada.json
 ```
 
-**Arquivo de saída:** `analise_rag_avancada.json`
+**Arquivo de saída:** `analise_rag_avançada.json`
 
 **Resultado esperado (trecho do terminal e do JSON de saída):**
 
 ```
-✓ Carregados 548 resultados
+Carregados 548 resultados
 ...
-✅ ANÁLISE AVANÇADA CONCLUÍDA!
-📁 Relatório salvo em: analise_rag_avancada.json
+ANALISE AVANCADA CONCLUIDA!
+Relatorio salvo em: analise_rag_avançada.json
 ```
 
-O campo `weighted_avg.f1-score` no JSON de saída corresponde ao F1-score ponderado de **0.9142** reportado no artigo.
+O campo `weighted_avg.f1-score` no JSON de saída corresponde ao F1-score ponderado de **0,9142** reportado no artigo.
 
 **Recursos necessários:** < 500 MB RAM (numpy + scikit-learn), < 30 segundos de execução.
 
 Para comparar com o baseline LLM:
 
 ```bash
-python 04_analise_avancada.py --input resultados_llm.json --output analise_llm_avancada.json
+python 04_analise_avancada.py --input resultados_llm.json --output analise_llm_avançada.json
 ```
 
 ---
 
-## Reivindicação #3 — Significância estatística via McNemar (p = 3.85 × 10⁻³⁴)
+## Reivindicação #3 - Significancia estatística via McNemar (p = 3,85 x 10^-34)
 
-**Arquivo de configuração:** nenhum — opera sobre os resultados já entregues.
+**Arquivo de configuração:** nenhum - opera sobre os resultados ja entregues.
 
 **Comando:**
 
@@ -381,14 +432,14 @@ python 07_mcnemar_test.py --llm resultados_llm.json --rag resultados_rag.json --
 }
 ```
 
-**Interpretação:** Com 112 casos em que RAG acertou e LLM errou (e nenhum caso inverso), o teste binomial exato bilateral confirma que a diferença é estatisticamente significativa (p ≈ 3.85 × 10⁻³⁴, muito abaixo de α = 0.05).
+**Interpretacao:** Com 112 casos em que RAG acertou e LLM errou (e nenhum caso inverso), o teste binomial exato bilateral confirma que a diferenca e estatísticamente significativa (p = 3,85 x 10^-34, muito abaixo de alfa = 0,05).
 
-**Recursos necessários:** < 100 MB RAM, < 60 segundos de execução.
+**Recursos necessários:** < 100 MB RAM, < 60 segundos de execução, sem dependências externas.
 
 ---
 
 # LICENSE
 
-Este projeto está licenciado sob a licença MIT. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto esta licenciado sob a licenca MIT. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-MIT License — Copyright (c) 2026 Kleiton Ewerton de Oliveira, Gleiph Ghiotto Lima de Menezes, André Luiz de Oliveira
+MIT License - Copyright (c) 2026 Kleiton Ewerton de Oliveira, Gleiph Ghiotto Lima de Menezes, André Luiz de Oliveira

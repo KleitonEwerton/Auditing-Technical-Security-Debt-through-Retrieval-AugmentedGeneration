@@ -1,9 +1,93 @@
+"""
+================================================================================
+  00_gerar_dataset_final.py  —  ETL: Geração do dataset_completo_mestrado.jsonl
+================================================================================
+
+⚠️  ATENÇÃO: ESTE SCRIPT NÃO É NECESSÁRIO PARA REPLICAR OS RESULTADOS DO ARTIGO.
+
+    O arquivo `dataset_completo_mestrado.jsonl` (2.740 exemplos) já está
+    disponível no repositório e é tudo que você precisa para reproduzir as
+    reivindicações dos experimentos. Você pode ignorar este script com segurança.
+
+--------------------------------------------------------------------------------
+  QUANDO USAR ESTE SCRIPT
+--------------------------------------------------------------------------------
+
+  Use este script SOMENTE se for necessário REGENERAR o dataset do zero,
+  por exemplo:
+    - Você deseja usar uma versão diferente do OWASP Benchmark;
+    - Você quer alterar o esquema de metadados (CWE, CAPEC, STRIDE);
+    - O arquivo original foi corrompido e precisa ser recriado.
+
+--------------------------------------------------------------------------------
+  ONDE EXECUTAR ESTE SCRIPT
+--------------------------------------------------------------------------------
+
+  Este script NÃO deve ser executado dentro deste repositório.
+  Ele precisa ser copiado para a RAIZ DO REPOSITÓRIO OWASP BenchmarkJava:
+
+    https://github.com/OWASP-Benchmark/BenchmarkJava
+
+  Após clonar o BenchmarkJava (v1.2), copie os seguintes arquivos para a raiz
+  daquele repositório e execute o script a partir de lá:
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  Arquivo a copiar                 │  Origem                            │
+    ├─────────────────────────────────────────────────────────────────────────┤
+    │  00_gerar_dataset_final.py        │  Este repositório (raiz)           │
+    │  expectedresults-1.2.csv          │  Este repositório (raiz)           │
+    │  cwec_v4.18.xml                   │  Este repositório (raiz)           │
+    │  capec_v3.9.xml                   │  Este repositório (raiz)           │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+  Estrutura esperada no BenchmarkJava após a cópia:
+
+    BenchmarkJava/
+    ├── src/main/java/org/owasp/benchmark/testcode/  ← código Java
+    ├── expectedresults-1.2.csv                       ← copiado daqui
+    ├── cwec_v4.18.xml                                ← copiado daqui
+    ├── capec_v3.9.xml                                ← copiado daqui
+    └── 00_gerar_dataset_final.py                     ← copiado daqui  ← EXECUTE AQUI
+
+  Comando para executar:
+
+    cd BenchmarkJava/
+    python 00_gerar_dataset_final.py
+
+  Saída gerada: `dataset_completo_mestrado.jsonl`  (≈10 MB, 2.740 linhas)
+  Copie o arquivo gerado de volta para a raiz deste repositório.
+
+--------------------------------------------------------------------------------
+  DEPENDÊNCIAS
+--------------------------------------------------------------------------------
+
+  Apenas bibliotecas da biblioteca padrão do Python (csv, json, os, re, xml).
+  Não é necessário instalar dependências adicionais para este script.
+  Python 3.10+ é suficiente.
+
+--------------------------------------------------------------------------------
+  REFERÊNCIAS
+--------------------------------------------------------------------------------
+
+  OWASP Benchmark Java v1.2:
+    https://github.com/OWASP-Benchmark/BenchmarkJava
+
+  MITRE CWE v4.18:
+    https://cwe.mitre.org/data/downloads.html
+
+  MITRE CAPEC v3.9:
+    https://capec.mitre.org/data/downloads.html
+
+================================================================================
+"""
+
 import csv
 import json
 import os
 import re
 import xml.etree.ElementTree as ET
 
+# Repositório de origem dos arquivos .java:
 # https://github.com/OWASP-Benchmark/BenchmarkJava
 
 # ================= CONFIGURAÇÕES =================
