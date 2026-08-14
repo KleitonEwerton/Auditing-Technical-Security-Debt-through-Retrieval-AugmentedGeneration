@@ -288,9 +288,9 @@ Edite o arquivo `.env`, adicionando sua chave ATIVA do groq:
 GROQ_API_KEY=sua_chave_groq_aqui # https://console.groq.com/keys
 
 # Ajuste conforme o rate limit da sua chave/plano Groq
-RATE_LIMIT_PAUSA_ENTRE_REQUISICOES=1
-RATE_LIMIT_REQUISICOES_POR_LOTE=5
-RATE_LIMIT_PAUSA_LOTE=5
+RATE_LIMIT_PAUSA_ENTRE_REQUISICOES=2
+RATE_LIMIT_REQUISICOES_POR_LOTE=10
+RATE_LIMIT_PAUSA_LOTE=10
 
 # Opcional: pausa específica do script 05_reprocessar_resultados.py
 RATE_LIMIT_REPROCESSAR_PAUSA_ENTRE_REQUISICOES=2
@@ -298,7 +298,7 @@ RATE_LIMIT_REPROCESSAR_PAUSA_ENTRE_REQUISICOES=2
 
 ### Rate limit da chave Groq (importante)
 
-Cada chave/plano da Groq pode ter limites diferentes (requisições por minuto, tokens por minuto e rajadas). **Antes de executar os scripts `02_*` e `05_*`, verifique os limites da sua chave no painel da Groq** e ajuste os parâmetros de rate limit no `.env`.
+Cada chave/plano da Groq pode ter limites diferentes (requisições por minuto, tokens por minuto, rajadas e tokens maximos por requisição). **Antes de executar os scripts `02_*` e `05_*`, verifique os limites da sua chave no painel da Groq** e ajuste os parâmetros de rate limit no `.env`.
 
 - `RATE_LIMIT_PAUSA_ENTRE_REQUISICOES`: pausa (em segundos) entre chamadas.
 - `RATE_LIMIT_REQUISICOES_POR_LOTE`: quantidade de requisições antes de aplicar pausa maior.
