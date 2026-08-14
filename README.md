@@ -79,8 +79,9 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 | `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparação_llm_vs_rag.json` | Compara accuracy e cobertura STRIDE lado a lado | #1 |
 | `07_mcnemar_test.py` | `resultados_llm.json`, `resultados_rag.json` | `mcnemar_report.json` | Teste estatístico pareado de McNemar | #3 |
 
-### Reprocessamento obrigatório quando houver erro nos resultados
-Se houver qualquer erro no JSON de resultados (por exemplo `erro`, `error`, `raw_response` ou resposta fora do formato esperado), **o reprocessamento deve ser executado antes de qualquer análise**.
+### Reprocessamento obrigatório quando houver erro nos resultados (Condicional)
+Esse passo é necessário apenas para avaliação completa com novos resultados,  para o testes mínimos e replicação dos resultados, não é necessário.
+Se houver qualquer erro no JSON de resultados (por exemplo, `erro`, `error`, `raw_response` ou resposta fora do formato esperado), **o reprocessamento deve ser executado antes de qualquer análise**.
 
 O script `05_reprocessar_resultados.py` **não reexecuta todo o pipeline**. Ele identifica somente os casos inválidos e reprocessa apenas estes itens usando o banco vetorial ChromaDB e uma nova chamada ao LLM.
 
