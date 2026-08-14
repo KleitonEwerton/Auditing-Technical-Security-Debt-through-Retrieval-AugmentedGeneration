@@ -12,12 +12,31 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
 
+
+def ler_env_int(nome_var: str, valor_padrao: int) -> int:
+    valor_bruto = os.getenv(nome_var)
+    if valor_bruto is None or valor_bruto.strip() == "":
+        return valor_padrao
+    try:
+        return int(valor_bruto)
+    except ValueError:
+        logging.warning(
+            "Valor inválido para %s=%s. Usando padrão %s.",
+            nome_var,
+            valor_bruto,
+            valor_padrao,
+        )
+        return valor_padrao
+
 CAMINHO_DB = "vectorstore_db"
 MODELO_EMBEDDING = "sentence-transformers/all-MiniLM-L6-v2"
 
 ARQUIVO_RESULTADOS_ENTRADA = "resultados_rag.json"
 
-PAUSA_ENTRE_REQUISICOES = 2
+PAUSA_ENTRE_REQUISICOES = ler_env_int(
+    "RATE_LIMIT_REPROCESSAR_PAUSA_ENTRE_REQUISICOES",
+    ler_env_int("RATE_LIMIT_PAUSA_ENTRE_REQUISICOES", 2),
+)
 
 
 def parse_args():
@@ -247,6 +266,7 @@ def main():
     print("=" * 80)
     print("🔄 REPROCESSAMENTO DE RESULTADOS INVÁLIDOS")
     print("=" * 80)
+    print(f"⚙️  Pausa padrão entre requisições: {args.pause}s")
 
     if not os.path.exists(args.arquivo_entrada):
         print(f"❌ Arquivo {args.arquivo_entrada} não encontrado.")

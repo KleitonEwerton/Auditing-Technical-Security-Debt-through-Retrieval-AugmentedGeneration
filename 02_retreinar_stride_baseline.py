@@ -8,14 +8,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def ler_env_int(nome_var: str, valor_padrao: int) -> int:
+    valor_bruto = os.getenv(nome_var)
+    if valor_bruto is None or valor_bruto.strip() == "":
+        return valor_padrao
+    try:
+        return int(valor_bruto)
+    except ValueError:
+        logging.warning(
+            "Valor inválido para %s=%s. Usando padrão %s.",
+            nome_var,
+            valor_bruto,
+            valor_padrao,
+        )
+        return valor_padrao
+
 # --- CONFIGURAÇÕES ---
 ARQUIVO_TESTE = "dataset_teste_reservado.jsonl"
 ARQUIVO_RESULTADOS_NOVO = "resultados_llm.json"
 
 # Rate Limiting
-PAUSA_ENTRE_REQUISICOES = 1  # segundos
-REQUISICOES_POR_LOTE = 5
-PAUSA_LOTE = 5
+PAUSA_ENTRE_REQUISICOES = ler_env_int("RATE_LIMIT_PAUSA_ENTRE_REQUISICOES", 1)  # segundos
+REQUISICOES_POR_LOTE = ler_env_int("RATE_LIMIT_REQUISICOES_POR_LOTE", 5)
+PAUSA_LOTE = ler_env_int("RATE_LIMIT_PAUSA_LOTE", 5)
 
 logging.basicConfig(filename='retreino_stride_baseline_log.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -69,6 +85,10 @@ def retreinar_stride_baseline():
     print("=" * 80)
     print("🔄 BASELINE LLM-ONLY (SEM RAG)")
     print("=" * 80)
+    print(
+        f"⚙️  Rate limit ativo: pausa={PAUSA_ENTRE_REQUISICOES}s | "
+        f"lote={REQUISICOES_POR_LOTE} req | pausa_lote={PAUSA_LOTE}s"
+    )
 
     # 1. Carregar dados de teste
     if not os.path.exists(ARQUIVO_TESTE):
