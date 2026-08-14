@@ -164,7 +164,7 @@ Os seguintes arquivos estão incluidos e **não precisam ser baixados ou gerados
 | `capec_v3.9.xml` | [MITRE CAPEC v3.9](https://capec.mitre.org/data/downloads.html) | Padroes de ataque |
 | `resultados_llm.json` | Gerado pelos experimentos | 548 predições do baseline LLM-only |
 | `resultados_rag.json` | Gerado pelos experimentos | 548 predições do pipeline RAG |
-| `vectorstore_db/` | Gerado por `01_construir_base_conhecimento.py` | Base de conhecimento vetorial (ChromaDB) com os 2.192 exemplos de treino |
+| `vectorstore_db/` | Gerado por `01_construir_base_conhecimento.py` | Base de conhecimento vetorial (ChromaDB) com os 2.192 exemplos de treino,  Split 80% do dataset completo |
 
 ## Sobre o dataset OWASP Benchmark v1.2
 
@@ -248,10 +248,10 @@ cp example.env .env
 Copy-Item example.env .env
 ```
 
-Edite o arquivo `.env`:
+Edite o arquivo `.env`, adicionando sua chave ATIVA do groq:
 
 ```
-GROQ_API_KEY=sua_chave_groq_aqui
+GROQ_API_KEY=sua_chave_groq_aqui # https://console.groq.com/keys
 ```
 
 ---
@@ -260,7 +260,7 @@ GROQ_API_KEY=sua_chave_groq_aqui
 
 Este teste verifica que o ambiente esta corretamente instalado executando dois scripts de analise que **não dependem de API externa, GPU ou modelos de embeddings** e que recalculam as métricas principais a partir dos resultados ja entregues.
 
-> **Pre-requisito:** Apenas Python instalado. Nao e necessário sequer o `pip install -r requirements.txt` para este teste mínimo - `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py` usam exclusivamente a biblioteca padrão do Python.
+> **Pre-requisito:** Apenas Python instalado. Nao e necessário sequer o `pip install -r requirements.txt` para este teste mínimo - `python 06_comparar_resultados_llm_rag.py` e `python 07_mcnemar_test.py` usam exclusivamente a biblioteca padrão do Python.
 
 ## Passo 1 - Verificar comparação LLM vs RAG
 
@@ -272,7 +272,7 @@ python 06_comparar_resultados_llm_rag.py
 
 ```
 ================================================================================
-COMPARACAO LLM vs RAG
+📊 COMPARAÇÃO LLM vs RAG
 ================================================================================
 LLM  - CWE Accuracy: 70.44% | STRIDE Coverage: 100.00%
 RAG  - CWE Accuracy: 90.88% | STRIDE Coverage: 100.00%
@@ -280,7 +280,7 @@ DELTA - CWE Accuracy: +20.44 pp | STRIDE Coverage: +0.00 pp
 Melhor em CWE: RAG
 Melhor em STRIDE: Empate
 
-Relatorio salvo em: comparação_llm_vs_rag.json
+📁 Relatório salvo em: comparacao_llm_vs_rag.json
 ```
 
 ## Passo 2 - Verificar teste de McNemar
@@ -300,7 +300,9 @@ python 07_mcnemar_test.py
   "both_wrong": 50,
   "discordant_b": 0,
   "discordant_c": 112,
-  "exact_two_sided_p": 3.85e-34
+  "exact_two_sided_p": 3.851859888774472e-34,
+  "chi2_continuity_corrected_stat": 110.00892857142857,
+  "chi2_p_value": 0.0
 }
 ```
 
