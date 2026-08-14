@@ -1,0 +1,21 @@
+# Dependências principais do pipeline RAG + LLM
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-chroma>=0.1.4
+langchain-huggingface>=0.1.2
+langchain-groq>=0.2.1
+langchain-text-splitters>=0.3.0
+
+# Banco de vetores
+chromadb>=0.5.0
+
+# Embeddings semânticos
+sentence-transformers>=3.0.0
+
+# Utilitários
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# Análise numérica e métricas (04_analise_avancada.py)
+numpy>=1.26.0
+scikit-learn>=1.5.0

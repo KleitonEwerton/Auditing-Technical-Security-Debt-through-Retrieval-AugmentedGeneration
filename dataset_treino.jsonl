@@ -1,1 +1,1 @@
-{"Salvo no vectorstore_db": "Sim", "Não contem o dataset_teste_reservado.jsonl": "Sim", "Contem o dataset_treino.jsonl": "Sim"}
+{"_note": "Os dados de treino (80% do dataset_completo_mestrado.jsonl, ~2192 exemplos) foram vetorizados pelo script 01_construir_base_conhecimento.py e persistidos no diretorio vectorstore_db/ como indice ChromaDB. Este arquivo nao contem os dados de treino em formato JSONL porque a base de conhecimento RAG e armazenada exclusivamente em formato vetorial."}
