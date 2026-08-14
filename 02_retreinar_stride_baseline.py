@@ -11,7 +11,6 @@ load_dotenv()
 # --- CONFIGURAÇÕES ---
 ARQUIVO_TESTE = "dataset_teste_reservado.jsonl"
 ARQUIVO_RESULTADOS_NOVO = "resultados_llm.json"
-ARQUIVO_RESULTADOS_ANTIGO = "resultados_teste.json"
 
 # Rate Limiting
 PAUSA_ENTRE_REQUISICOES = 1  # segundos
@@ -189,22 +188,6 @@ def retreinar_stride_baseline():
     print("=" * 80)
     print(f"\n📁 Resultados salvos em: {ARQUIVO_RESULTADOS_NOVO}")
     print(f"📊 Total de testes executados: {len(resultados)}")
-
-    # 5. Comparar com resultados anteriores
-    if os.path.exists(ARQUIVO_RESULTADOS_ANTIGO):
-        print("\n" + "=" * 80)
-        print("📊 COMPARAÇÃO COM RESULTADOS ANTERIORES")
-        print("=" * 80)
-
-        with open(ARQUIVO_RESULTADOS_ANTIGO, 'r', encoding='utf-8') as f:
-            resultados_antigos = json.load(f)
-
-        print(f"\nResultados antigos: {len(resultados_antigos)} testes")
-        print(f"Resultados novos:   {len(resultados)} testes")
-
-        print("\n💡 Execute o script 03_comparar_resultados.py para comparar resultados:")
-        print(f"   python 03_comparar_resultados.py")
-
 
 if __name__ == "__main__":
     retreinar_stride_baseline()
