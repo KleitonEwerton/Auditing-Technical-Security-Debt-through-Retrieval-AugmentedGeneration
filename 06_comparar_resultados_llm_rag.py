@@ -4,13 +4,17 @@ Gera um relatório consolidado com métricas lado a lado e deltas.
 """
 import argparse
 import json
-from collections import Counter, defaultdict
-from typing import Dict, List, Tuple
+import subprocess
+import sys
+from pathlib import Path
+from collections import Counter
+from typing import Dict, List
 
 
 ARQUIVO_LLM_PADRAO = "resultados_llm.json"
 ARQUIVO_RAG_PADRAO = "resultados_rag.json"
 ARQUIVO_SAIDA_PADRAO = "comparacao_llm_vs_rag.json"
+SCRIPT_REPROCESSAMENTO = "05_reprocessar_resultados.py"
 
 CWE_TO_STRIDE = {
     "CWE-22": ["Information Disclosure"],
@@ -34,6 +38,72 @@ def carregar_resultados(arquivo: str) -> List[Dict]:
     except FileNotFoundError:
         print(f"❌ Arquivo {arquivo} não encontrado")
         return []
+
+
+def extrair_casos_invalidos(resultados: List[Dict]) -> List[Dict]:
+    invalidos = []
+    for item in resultados:
+        resultado_llm = item.get('resultado_llm', {})
+        if item.get('erro') or item.get('erro_reprocessamento'):
+            invalidos.append(item)
+            continue
+        if isinstance(resultado_llm, dict) and (
+            resultado_llm.get('error') == 'Resposta não é JSON válido' or 'raw_response' in resultado_llm
+        ):
+            invalidos.append(item)
+    return invalidos
+
+
+def nome_reprocessado(caminho_arquivo: str) -> str:
+    p = Path(caminho_arquivo)
+    return str(p.with_name(f"{p.stem}_reprocessado{p.suffix}"))
+
+
+def preparar_resultados(caminho_arquivo: str, auto_reprocessar: bool):
+    resultados = carregar_resultados(caminho_arquivo)
+    if not resultados:
+        return None, None
+
+    invalidos = extrair_casos_invalidos(resultados)
+    if not invalidos:
+        return resultados, caminho_arquivo
+
+    print(f"⚠️ Foram encontrados {len(invalidos)} casos inválidos em {caminho_arquivo}.")
+
+    if not auto_reprocessar:
+        arquivo_saida = nome_reprocessado(caminho_arquivo)
+        print("❌ Comparação interrompida para evitar métricas distorcidas.")
+        print("👉 Reprocesse antes de comparar:")
+        print(
+            f"python {SCRIPT_REPROCESSAMENTO} --input {caminho_arquivo} --output {arquivo_saida}"
+        )
+        print("Ou execute novamente com --auto-reprocess para automatizar esse passo.")
+        return None, None
+
+    arquivo_saida = nome_reprocessado(caminho_arquivo)
+    print(f"🔄 Reprocessando automaticamente: {caminho_arquivo}")
+    subprocess.run(
+        [
+            sys.executable,
+            SCRIPT_REPROCESSAMENTO,
+            "--input",
+            caminho_arquivo,
+            "--output",
+            arquivo_saida,
+        ],
+        check=True,
+    )
+
+    resultados_reprocessados = carregar_resultados(arquivo_saida)
+    invalidos_restantes = extrair_casos_invalidos(resultados_reprocessados)
+    if invalidos_restantes:
+        print(
+            f"❌ Ainda restaram {len(invalidos_restantes)} casos inválidos após reprocessamento em {arquivo_saida}."
+        )
+        return None, None
+
+    print(f"✅ Reprocessamento concluído. Comparação seguirá com: {arquivo_saida}")
+    return resultados_reprocessados, arquivo_saida
 
 
 def normalizar_resposta_llm(resultado_llm):
@@ -138,12 +208,21 @@ def main():
     parser.add_argument("--llm", default=ARQUIVO_LLM_PADRAO, help="Arquivo JSON do baseline LLM-only")
     parser.add_argument("--rag", default=ARQUIVO_RAG_PADRAO, help="Arquivo JSON do resultado RAG")
     parser.add_argument("--output", default=ARQUIVO_SAIDA_PADRAO, help="Arquivo JSON de saída")
+    parser.add_argument(
+        "--auto-reprocess",
+        action="store_true",
+        help="Se houver erros em LLM/RAG, executa automaticamente o 05_reprocessar_resultados.py",
+    )
     args = parser.parse_args()
 
-    resultados_llm = carregar_resultados(args.llm)
-    resultados_rag = carregar_resultados(args.rag)
+    try:
+        resultados_llm, llm_origem = preparar_resultados(args.llm, args.auto_reprocess)
+        resultados_rag, rag_origem = preparar_resultados(args.rag, args.auto_reprocess)
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Falha ao executar reprocessamento automático: {e}")
+        return
 
-    if not resultados_llm or not resultados_rag:
+    if resultados_llm is None or resultados_rag is None:
         return
 
     metricas_llm = extrair_metricas(resultados_llm)
@@ -152,8 +231,8 @@ def main():
 
     relatorio = {
         'arquivos': {
-            'llm': args.llm,
-            'rag': args.rag,
+            'llm': llm_origem,
+            'rag': rag_origem,
         },
         'llm': metricas_llm,
         'rag': metricas_rag,

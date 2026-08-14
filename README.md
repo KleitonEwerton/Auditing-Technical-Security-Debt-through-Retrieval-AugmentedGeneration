@@ -79,9 +79,10 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 | `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparação_llm_vs_rag.json` | Compara accuracy e cobertura STRIDE lado a lado | #1 |
 | `07_mcnemar_test.py` | `resultados_llm.json`, `resultados_rag.json` | `mcnemar_report.json` | Teste estatístico pareado de McNemar | #3 |
 
-### Como usar o Sprint 05 em caso de erro em `resultados_llm.json`
+### Reprocessamento obrigatório quando houver erro nos resultados
+Se houver qualquer erro no JSON de resultados (por exemplo `erro`, `error`, `raw_response` ou resposta fora do formato esperado), **o reprocessamento deve ser executado antes de qualquer análise**.
 
-O script `05_reprocessar_resultados.py` não reexecuta todo o pipeline. Ele identifica apenas os casos problemáticos no JSON de saída e tenta corrigir estes itens usando o banco vetorial ChromaDB e uma segunda chamada ao modelo LLM.
+O script `05_reprocessar_resultados.py` **não reexecuta todo o pipeline**. Ele identifica somente os casos inválidos e reprocessa apenas estes itens usando o banco vetorial ChromaDB e uma nova chamada ao LLM.
 
 - Ele considera como inválidos itens com:
   - `erro` preenchido;
@@ -89,21 +90,28 @@ O script `05_reprocessar_resultados.py` não reexecuta todo o pipeline. Ele iden
   - `resultado_llm` contendo `raw_response`;
   - respostas fora do formato JSON esperado.
 - Casos já válidos são preservados exatamente como estão no arquivo original.
-- O script gera um novo arquivo de saída e não sobrescreve automaticamente o arquivo de entrada.
+- Para facilitar o uso, se `--output` não for informado, o script gera automaticamente `<arquivo_entrada>_reprocessado.json`.
+- Se desejar substituir diretamente o arquivo original, use `--overwrite-input`.
 
 Exemplo de uso para o arquivo do baseline LLM:
 
 ```bash
-python 05_reprocessar_resultados.py --input resultados_llm.json --output resultados_llm_reprocessado.json
+python 05_reprocessar_resultados.py --input resultados_llm.json
 ```
 
 Exemplo equivalente para o pipeline RAG:
 
 ```bash
-python 05_reprocessar_resultados.py --input resultados_rag.json --output resultados_rag_reprocessado.json
+python 05_reprocessar_resultados.py --input resultados_rag.json
 ```
 
-Se não houver nenhum caso inválido, o script imprime uma mensagem de confirmação e encerra sem alterar o arquivo de entrada. Assim, a correção fica explicita, reproduzível e auditável para avaliadores e revisores.
+Exemplo para sobrescrever o arquivo original (sem etapa manual de renomear):
+
+```bash
+python 05_reprocessar_resultados.py --input resultados_llm.json --overwrite-input
+```
+
+Se não houver nenhum caso inválido, o script gera um arquivo de saída preservado e confirma que os dados válidos permaneceram inalterados. Assim, a correção fica explicita, reproduzível e auditável para avaliadores e revisores.
 
 ---
 
@@ -396,13 +404,15 @@ python 06_comparar_resultados_llm_rag.py
 > - **Timeout** na chamada a API (por instabilidade da LLM, da rede ou limites de rate da sua chave de API)
 > - Erros de parse que resultam em instâncias marcadas como falhas
 >
-> **Como proceder em caso de falha:** Os scripts incluem salvamento automatico apos cada predição e suporte a retomada interativa (s/n). Instancias com falha de parse podem ser reprocessadas com `05_reprocessar_resultados.py` usando o arquivo afetado, por exemplo:
+> **Como proceder em caso de falha:** Os scripts incluem salvamento automatico apos cada predição e suporte a retomada interativa (s/n). Instancias com falha de parse devem ser reprocessadas com `05_reprocessar_resultados.py` usando o arquivo afetado, por exemplo:
 >
 > ```bash
-> python 05_reprocessar_resultados.py --input resultados_llm.json --output resultados_llm_reprocessado.json
+> python 05_reprocessar_resultados.py --input resultados_llm.json
 > ```
 >
-> O script identifica apenas os itens inválidos, reprocessa somente esses casos com o contexto RAG e salva um novo JSON de saída. Casos já válidos permanecem inalterados, o que torna a correção reproduzível, auditável e compatível com uma revisão por avaliadores. Se o timeout ou erro de API for persistente para determinadas instâncias, **execute o script novamente em um novo processo separado** - ele retomara automaticamente de onde parou, saltando os casos ja processados com sucesso.
+> O script identifica apenas os itens inválidos, reprocessa somente esses casos com o contexto RAG e salva automaticamente `<arquivo>_reprocessado.json` (ou sobrescreve com `--overwrite-input`, se desejado). Casos já válidos permanecem inalterados, o que torna a correção reproduzível, auditável e compatível com uma revisão por avaliadores.
+>
+> Para reduzir trabalho manual, os scripts de análise `03`, `04`, `06` e `07` agora interrompem quando detectam erro e orientam o reprocessamento, ou podem automatizar esse passo com a flag `--auto-reprocess`.
 
 ---
 

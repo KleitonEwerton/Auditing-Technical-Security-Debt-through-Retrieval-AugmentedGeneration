@@ -4,10 +4,14 @@ Gera métricas detalhadas: CWE Detection + STRIDE Classification.
 """
 import argparse
 import json
+import subprocess
+import sys
+from pathlib import Path
 from collections import defaultdict
 
 ARQUIVO_RESULTADOS_PADRAO = "resultados_rag.json"
 ARQUIVO_SAIDA_PADRAO = "analise_resultados_melhorados.json"
+SCRIPT_REPROCESSAMENTO = "05_reprocessar_resultados.py"
 
 # Mapeamento CWE → STRIDE (baseado em análise acadêmica)
 # Usado para validar classificações STRIDE
@@ -53,6 +57,75 @@ def extrair_stride_do_llm(resultado_llm):
         
         return resultado_llm.get('stride', 'Unknown')
     return 'Unknown'
+
+
+def extrair_casos_invalidos(resultados):
+    invalidos = []
+    for item in resultados:
+        resultado_llm = item.get('resultado_llm', {})
+        if item.get('erro') or item.get('erro_reprocessamento'):
+            invalidos.append(item)
+            continue
+        if isinstance(resultado_llm, dict) and (
+            resultado_llm.get('error') == 'Resposta não é JSON válido' or 'raw_response' in resultado_llm
+        ):
+            invalidos.append(item)
+    return invalidos
+
+
+def carregar_json_arquivo(caminho_arquivo):
+    with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def nome_reprocessado(caminho_arquivo: str) -> str:
+    p = Path(caminho_arquivo)
+    return str(p.with_name(f"{p.stem}_reprocessado{p.suffix}"))
+
+
+def preparar_resultados_para_analise(caminho_arquivo: str, auto_reprocessar: bool):
+    resultados = carregar_json_arquivo(caminho_arquivo)
+    invalidos = extrair_casos_invalidos(resultados)
+    if not invalidos:
+        return resultados, caminho_arquivo
+
+    print(f"⚠️ Foram encontrados {len(invalidos)} casos inválidos em {caminho_arquivo}.")
+
+    if not auto_reprocessar:
+        arquivo_saida = nome_reprocessado(caminho_arquivo)
+        print("❌ A análise foi interrompida para evitar métricas distorcidas.")
+        print("👉 Reprocesse antes de analisar:")
+        print(
+            f"python {SCRIPT_REPROCESSAMENTO} --input {caminho_arquivo} --output {arquivo_saida}"
+        )
+        print("Ou execute novamente com --auto-reprocess para automatizar esse passo.")
+        return None, None
+
+    arquivo_saida = nome_reprocessado(caminho_arquivo)
+    print("🔄 Reprocessando automaticamente os casos inválidos...")
+    subprocess.run(
+        [
+            sys.executable,
+            SCRIPT_REPROCESSAMENTO,
+            "--input",
+            caminho_arquivo,
+            "--output",
+            arquivo_saida,
+        ],
+        check=True,
+    )
+
+    resultados_reprocessados = carregar_json_arquivo(arquivo_saida)
+    invalidos_restantes = extrair_casos_invalidos(resultados_reprocessados)
+    if invalidos_restantes:
+        print(
+            f"❌ Ainda restaram {len(invalidos_restantes)} casos inválidos após reprocessamento. "
+            "Revise o arquivo reprocessado antes de prosseguir."
+        )
+        return None, None
+
+    print(f"✅ Reprocessamento concluído. Análise seguirá com: {arquivo_saida}")
+    return resultados_reprocessados, arquivo_saida
 
 def calcular_metricas_por_cwe(resultados):
     """Calcula métricas detalhadas para cada CWE + distribuição STRIDE"""
@@ -213,15 +286,24 @@ def main():
     parser = argparse.ArgumentParser(description="Analisa resultados LLM/RAG e gera métricas de CWE/STRIDE.")
     parser.add_argument("--input", default=ARQUIVO_RESULTADOS_PADRAO, help="Arquivo JSON de resultados de entrada")
     parser.add_argument("--output", default=ARQUIVO_SAIDA_PADRAO, help="Arquivo JSON de saída do relatório")
+    parser.add_argument(
+        "--auto-reprocess",
+        action="store_true",
+        help="Se houver erros no arquivo de entrada, executa automaticamente o 05_reprocessar_resultados.py",
+    )
     args = parser.parse_args()
 
     # Carregar resultados
     try:
-        with open(args.input, 'r', encoding='utf-8') as f:
-            resultados = json.load(f)
-        print(f"✓ Arquivo carregado: {len(resultados)} testes\n")
+        resultados, origem_usada = preparar_resultados_para_analise(args.input, args.auto_reprocess)
+        if resultados is None:
+            return
+        print(f"✓ Arquivo carregado: {len(resultados)} testes ({origem_usada})\n")
     except FileNotFoundError:
         print(f"❌ Arquivo {args.input} não encontrado")
+        return
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Falha ao executar reprocessamento automático: {e}")
         return
     
     # Gerar relatório

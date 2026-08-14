@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import time
+from pathlib import Path
 from dotenv import load_dotenv
 from langchain_chroma.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -15,7 +16,6 @@ CAMINHO_DB = "vectorstore_db"
 MODELO_EMBEDDING = "sentence-transformers/all-MiniLM-L6-v2"
 
 ARQUIVO_RESULTADOS_ENTRADA = "resultados_rag.json"
-ARQUIVO_RESULTADOS_SAIDA = "resultados_rag_reprocessado.json"
 
 PAUSA_ENTRE_REQUISICOES = 2
 
@@ -36,8 +36,16 @@ def parse_args():
     parser.add_argument(
         "--output",
         dest="arquivo_saida",
-        default=ARQUIVO_RESULTADOS_SAIDA,
-        help="Arquivo JSON de saída com os itens reprocessados",
+        default=None,
+        help=(
+            "Arquivo JSON de saída com os itens reprocessados. Se omitido, usa "
+            "<input>_reprocessado.json"
+        ),
+    )
+    parser.add_argument(
+        "--overwrite-input",
+        action="store_true",
+        help="Sobrescreve o arquivo de entrada com os resultados reprocessados",
     )
     parser.add_argument(
         "--db",
@@ -177,6 +185,16 @@ def extrair_casos_invalidos(resultados):
     return invalidos
 
 
+def resolver_arquivo_saida(arquivo_entrada: str, arquivo_saida: str, sobrescrever_entrada: bool) -> str:
+    if sobrescrever_entrada:
+        return arquivo_entrada
+    if arquivo_saida:
+        return arquivo_saida
+
+    entrada = Path(arquivo_entrada)
+    return str(entrada.with_name(f"{entrada.stem}_reprocessado{entrada.suffix}"))
+
+
 def carregar_contexto_rag(db, codigo: str) -> str:
     resultados_busca = db.similarity_search(codigo, k=3)
     contexto_str = ""
@@ -220,6 +238,11 @@ def reprocessar_item(item, chain_principal, chain_reparo, db):
 
 def main():
     args = parse_args()
+    arquivo_saida_final = resolver_arquivo_saida(
+        args.arquivo_entrada,
+        args.arquivo_saida,
+        args.overwrite_input,
+    )
 
     print("=" * 80)
     print("🔄 REPROCESSAMENTO DE RESULTADOS INVÁLIDOS")
@@ -241,7 +264,14 @@ def main():
     print(f"⚠️  Casos inválidos encontrados: {len(invalidos)}")
 
     if not invalidos:
-        print("✅ Nenhum caso inválido para reprocessar. O arquivo de entrada foi preservado sem alterações.")
+        with open(arquivo_saida_final, 'w', encoding='utf-8') as f:
+            json.dump(resultados, f, indent=2, ensure_ascii=False)
+
+        print("✅ Nenhum caso inválido para reprocessar.")
+        if arquivo_saida_final == args.arquivo_entrada:
+            print("📌 Arquivo de entrada mantido sem alterações.")
+        else:
+            print(f"📁 Cópia preservada gerada em: {arquivo_saida_final}")
         return
 
     embedding_function = HuggingFaceEmbeddings(model_name=MODELO_EMBEDDING)
@@ -274,13 +304,14 @@ def main():
 
         resultados_atualizados.append(item)
 
-    with open(args.arquivo_saida, 'w', encoding='utf-8') as f:
+    with open(arquivo_saida_final, 'w', encoding='utf-8') as f:
         json.dump(resultados_atualizados, f, indent=2, ensure_ascii=False)
 
     print("\n" + "=" * 80)
     print("✅ REPROCESSAMENTO CONCLUÍDO")
     print("=" * 80)
-    print(f"📁 Arquivo salvo em: {args.arquivo_saida}")
+    print("📌 Regra aplicada: apenas itens inválidos foram atualizados; itens válidos permaneceram inalterados.")
+    print(f"📁 Arquivo salvo em: {arquivo_saida_final}")
 
 
 if __name__ == "__main__":

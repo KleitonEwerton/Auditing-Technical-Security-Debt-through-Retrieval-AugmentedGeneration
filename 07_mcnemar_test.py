@@ -16,8 +16,13 @@ correção de continuidade (df=1).
 import argparse
 import json
 import math
+import subprocess
+import sys
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
+
+
+SCRIPT_REPROCESSAMENTO = "05_reprocessar_resultados.py"
 
 
 def load_results(path: Path) -> Dict[str, dict]:
@@ -29,6 +34,70 @@ def load_results(path: Path) -> Dict[str, dict]:
             key = str(item.get("teste_idx"))
         mapping[key] = item
     return mapping
+
+
+def extrair_casos_invalidos(resultados: List[dict]) -> List[dict]:
+    invalidos = []
+    for item in resultados:
+        resultado_llm = item.get("resultado_llm", {})
+        if item.get("erro") or item.get("erro_reprocessamento"):
+            invalidos.append(item)
+            continue
+        if isinstance(resultado_llm, dict) and (
+            resultado_llm.get("error") == "Resposta não é JSON válido" or "raw_response" in resultado_llm
+        ):
+            invalidos.append(item)
+    return invalidos
+
+
+def nome_reprocessado(caminho_arquivo: Path) -> Path:
+    return caminho_arquivo.with_name(f"{caminho_arquivo.stem}_reprocessado{caminho_arquivo.suffix}")
+
+
+def preparar_arquivo_resultado(caminho_arquivo: Path, auto_reprocessar: bool) -> Path:
+    if not caminho_arquivo.exists():
+        return None
+
+    dados = json.loads(caminho_arquivo.read_text(encoding="utf-8"))
+    invalidos = extrair_casos_invalidos(dados)
+    if not invalidos:
+        return caminho_arquivo
+
+    print(f"⚠️ Foram encontrados {len(invalidos)} casos inválidos em {caminho_arquivo}.")
+    saida_reprocessada = nome_reprocessado(caminho_arquivo)
+
+    if not auto_reprocessar:
+        print("❌ Teste de McNemar interrompido para evitar distorção estatística.")
+        print("👉 Reprocesse antes de rodar o teste:")
+        print(
+            f"python {SCRIPT_REPROCESSAMENTO} --input {caminho_arquivo} --output {saida_reprocessada}"
+        )
+        print("Ou execute novamente com --auto-reprocess para automatizar esse passo.")
+        return None
+
+    print(f"🔄 Reprocessando automaticamente: {caminho_arquivo}")
+    subprocess.run(
+        [
+            sys.executable,
+            SCRIPT_REPROCESSAMENTO,
+            "--input",
+            str(caminho_arquivo),
+            "--output",
+            str(saida_reprocessada),
+        ],
+        check=True,
+    )
+
+    dados_reprocessados = json.loads(saida_reprocessada.read_text(encoding="utf-8"))
+    invalidos_restantes = extrair_casos_invalidos(dados_reprocessados)
+    if invalidos_restantes:
+        print(
+            f"❌ Ainda restaram {len(invalidos_restantes)} casos inválidos após reprocessamento em {saida_reprocessada}."
+        )
+        return None
+
+    print(f"✅ Reprocessamento concluído. Teste seguirá com: {saida_reprocessada}")
+    return saida_reprocessada
 
 
 def extract_ground_truth_cwe(item: dict) -> str:
@@ -115,12 +184,27 @@ def main():
     parser.add_argument("--llm", default="resultados_llm.json", help="arquivo de resultados LLM")
     parser.add_argument("--rag", default="resultados_rag.json", help="arquivo de resultados RAG")
     parser.add_argument("--output", default="mcnemar_report.json", help="arquivo de saída JSON")
+    parser.add_argument(
+        "--auto-reprocess",
+        action="store_true",
+        help="Se houver erros em LLM/RAG, executa automaticamente o 05_reprocessar_resultados.py",
+    )
     args = parser.parse_args()
 
     llm_path = Path(args.llm)
     rag_path = Path(args.rag)
     if not llm_path.exists() or not rag_path.exists():
         print(f"Arquivo não encontrado: {llm_path} ou {rag_path}")
+        return
+
+    try:
+        llm_path = preparar_arquivo_resultado(llm_path, args.auto_reprocess)
+        rag_path = preparar_arquivo_resultado(rag_path, args.auto_reprocess)
+    except subprocess.CalledProcessError as e:
+        print(f"Falha no reprocessamento automático: {e}")
+        return
+
+    if llm_path is None or rag_path is None:
         return
 
     llm_map = load_results(llm_path)
