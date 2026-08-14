@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import logging
@@ -17,6 +18,40 @@ ARQUIVO_RESULTADOS_ENTRADA = "resultados_rag.json"
 ARQUIVO_RESULTADOS_SAIDA = "resultados_rag_reprocessado.json"
 
 PAUSA_ENTRE_REQUISICOES = 2
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Reprocessa apenas itens com erro de parse ou resposta inválida em "
+            "resultados_llm.json ou resultados_rag.json."
+        )
+    )
+    parser.add_argument(
+        "--input",
+        dest="arquivo_entrada",
+        default=ARQUIVO_RESULTADOS_ENTRADA,
+        help="Arquivo JSON de entrada (ex.: resultados_llm.json ou resultados_rag.json)",
+    )
+    parser.add_argument(
+        "--output",
+        dest="arquivo_saida",
+        default=ARQUIVO_RESULTADOS_SAIDA,
+        help="Arquivo JSON de saída com os itens reprocessados",
+    )
+    parser.add_argument(
+        "--db",
+        dest="caminho_db",
+        default=CAMINHO_DB,
+        help="Diretório local do banco ChromaDB",
+    )
+    parser.add_argument(
+        "--pause",
+        type=int,
+        default=PAUSA_ENTRE_REQUISICOES,
+        help="Tempo em segundos entre requisições ao LLM",
+    )
+    return parser.parse_args()
 
 logging.basicConfig(
     filename='reprocessamento_invalidos.log',
@@ -184,19 +219,21 @@ def reprocessar_item(item, chain_principal, chain_reparo, db):
 
 
 def main():
+    args = parse_args()
+
     print("=" * 80)
     print("🔄 REPROCESSAMENTO DE RESULTADOS INVÁLIDOS")
     print("=" * 80)
 
-    if not os.path.exists(ARQUIVO_RESULTADOS_ENTRADA):
-        print(f"❌ Arquivo {ARQUIVO_RESULTADOS_ENTRADA} não encontrado.")
+    if not os.path.exists(args.arquivo_entrada):
+        print(f"❌ Arquivo {args.arquivo_entrada} não encontrado.")
         return
 
-    if not os.path.exists(CAMINHO_DB):
+    if not os.path.exists(args.caminho_db):
         print("❌ Banco de vetores não encontrado.")
         return
 
-    with open(ARQUIVO_RESULTADOS_ENTRADA, 'r', encoding='utf-8') as f:
+    with open(args.arquivo_entrada, 'r', encoding='utf-8') as f:
         resultados = json.load(f)
 
     invalidos = extrair_casos_invalidos(resultados)
@@ -204,11 +241,11 @@ def main():
     print(f"⚠️  Casos inválidos encontrados: {len(invalidos)}")
 
     if not invalidos:
-        print("✅ Nenhum caso inválido para reprocessar.")
+        print("✅ Nenhum caso inválido para reprocessar. O arquivo de entrada foi preservado sem alterações.")
         return
 
     embedding_function = HuggingFaceEmbeddings(model_name=MODELO_EMBEDDING)
-    db = Chroma(persist_directory=CAMINHO_DB, embedding_function=embedding_function)
+    db = Chroma(persist_directory=args.caminho_db, embedding_function=embedding_function)
 
     prompt_principal = ChatPromptTemplate.from_template(PROMPT_PRINCIPAL)
     prompt_reparo = ChatPromptTemplate.from_template(PROMPT_REPARO_JSON)
@@ -233,17 +270,17 @@ def main():
                 item["erro_reprocessamento"] = str(e)
                 logging.error(f"Erro ao reprocessar teste {teste_idx}: {str(e)}")
 
-            time.sleep(PAUSA_ENTRE_REQUISICOES)
+            time.sleep(args.pause)
 
         resultados_atualizados.append(item)
 
-    with open(ARQUIVO_RESULTADOS_SAIDA, 'w', encoding='utf-8') as f:
+    with open(args.arquivo_saida, 'w', encoding='utf-8') as f:
         json.dump(resultados_atualizados, f, indent=2, ensure_ascii=False)
 
     print("\n" + "=" * 80)
     print("✅ REPROCESSAMENTO CONCLUÍDO")
     print("=" * 80)
-    print(f"📁 Arquivo salvo em: {ARQUIVO_RESULTADOS_SAIDA}")
+    print(f"📁 Arquivo salvo em: {args.arquivo_saida}")
 
 
 if __name__ == "__main__":

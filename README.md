@@ -75,9 +75,35 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 | `02_retreinar_stride_baseline.py` | `dataset_teste_reservado.jsonl`, API Groq | `resultados_llm.json` | Executa o baseline LLM-only sobre os 548 casos de teste. **Nao e necessário para replicação** (resultados ja inclusos) | #1 |
 | `03_analisar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Saída no terminal | Analise rapida de resultados individuais | - |
 | `04_analise_avancada.py` | `resultados_rag.json` ou `resultados_llm.json` | `analise_avançada_métricas.json` (padrão) | F1-score ponderado, matriz de confusão, analise de erros | #2 |
-| `05_reprocessar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Arquivo de resultados corrigido | Reprocessa respostas com parse falho | - |
+| `05_reprocessar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Arquivo de resultados corrigido | Reprocessa apenas itens com JSON inválido, `erro` ou `raw_response` | - |
 | `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparação_llm_vs_rag.json` | Compara accuracy e cobertura STRIDE lado a lado | #1 |
 | `07_mcnemar_test.py` | `resultados_llm.json`, `resultados_rag.json` | `mcnemar_report.json` | Teste estatístico pareado de McNemar | #3 |
+
+### Como usar o Sprint 05 em caso de erro em `resultados_llm.json`
+
+O script `05_reprocessar_resultados.py` não reexecuta todo o pipeline. Ele identifica apenas os casos problemáticos no JSON de saída e tenta corrigir estes itens usando o banco vetorial ChromaDB e uma segunda chamada ao modelo LLM.
+
+- Ele considera como inválidos itens com:
+  - `erro` preenchido;
+  - `resultado_llm` com `error == "Resposta não é JSON válido"`;
+  - `resultado_llm` contendo `raw_response`;
+  - respostas fora do formato JSON esperado.
+- Casos já válidos são preservados exatamente como estão no arquivo original.
+- O script gera um novo arquivo de saída e não sobrescreve automaticamente o arquivo de entrada.
+
+Exemplo de uso para o arquivo do baseline LLM:
+
+```bash
+python 05_reprocessar_resultados.py --input resultados_llm.json --output resultados_llm_reprocessado.json
+```
+
+Exemplo equivalente para o pipeline RAG:
+
+```bash
+python 05_reprocessar_resultados.py --input resultados_rag.json --output resultados_rag_reprocessado.json
+```
+
+Se não houver nenhum caso inválido, o script imprime uma mensagem de confirmação e encerra sem alterar o arquivo de entrada. Assim, a correção fica explicita, reproduzível e auditável para avaliadores e revisores.
 
 ---
 
@@ -370,7 +396,13 @@ python 06_comparar_resultados_llm_rag.py
 > - **Timeout** na chamada a API (por instabilidade da LLM, da rede ou limites de rate da sua chave de API)
 > - Erros de parse que resultam em instâncias marcadas como falhas
 >
-> **Como proceder em caso de falha:** Os scripts incluem salvamento automatico apos cada predição e suporte a retomada interativa (s/n). Instancias com falha de parse podem ser reprocessadas com `05_reprocessar_resultados.py`. Se o timeout ou erro de API for persistente para determinadas instâncias, **execute o script novamente em um novo processo separado** - ele retomara automaticamente de onde parou, saltando os casos ja processados com sucesso.
+> **Como proceder em caso de falha:** Os scripts incluem salvamento automatico apos cada predição e suporte a retomada interativa (s/n). Instancias com falha de parse podem ser reprocessadas com `05_reprocessar_resultados.py` usando o arquivo afetado, por exemplo:
+>
+> ```bash
+> python 05_reprocessar_resultados.py --input resultados_llm.json --output resultados_llm_reprocessado.json
+> ```
+>
+> O script identifica apenas os itens inválidos, reprocessa somente esses casos com o contexto RAG e salva um novo JSON de saída. Casos já válidos permanecem inalterados, o que torna a correção reproduzível, auditável e compatível com uma revisão por avaliadores. Se o timeout ou erro de API for persistente para determinadas instâncias, **execute o script novamente em um novo processo separado** - ele retomara automaticamente de onde parou, saltando os casos ja processados com sucesso.
 
 ---
 
