@@ -15,7 +15,7 @@
     "stride": {
       "classificados": 548,
       "total_validos": 548,
-      "cobertura_percentual": 100.0,
+      "taxa_resposta_percentual": 100.0,
       "distribuicao": {
         "Spoofing": 158,
         "Information Disclosure": 281,
@@ -49,7 +49,7 @@
     "stride": {
       "classificados": 548,
       "total_validos": 548,
-      "cobertura_percentual": 100.0,
+      "taxa_resposta_percentual": 100.0,
       "distribuicao": {
         "Tampering": 144,
         "Information Disclosure": 260,
@@ -73,7 +73,7 @@
   },
   "comparacao": {
     "cwe_accuracy_delta": 20.44,
-    "stride_coverage_delta": 0.0,
+    "stride_response_rate_delta": 0.0,
     "validos_delta": 0,
     "invalidos_delta": 0,
     "melhor_em_cwe": "RAG",

@@ -38,8 +38,10 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 |-- 03_analisar_resultados.py          # Analise basica de resultados individuais
 |-- 04_analise_avancada.py             # Métricas avançadas: F1, matriz de confusão, analise de erros
 |-- 05_reprocessar_resultados.py       # Reprocessa/corrige resultados ja gerados
-|-- 06_comparar_resultados_llm_rag.py  # Compara accuracy LLM vs RAG -> comparação_llm_vs_rag.json
+|-- 06_comparar_resultados_llm_rag.py  # Compara accuracy LLM vs RAG -> comparacao_llm_vs_rag.json
 |-- 07_mcnemar_test.py                 # Teste estatístico de McNemar -> mcnemar_report.json
+|-- 08_analise_similaridade_treino_teste.py  # Analise TF-IDF de similaridade entre partições
+|-- reproduce_forma_a.py               # Automação da Forma A (reproduz as 3 reivindicações)
 |-- dataset_completo_mestrado.jsonl    # Dataset completo OWASP Benchmark v1.2 (2.740 exemplos)
 |-- dataset_teste_reservado.jsonl      # 20% reservados para teste (548 exemplos)
 |-- dataset_treino.jsonl               # Placeholder - dados de treino estão vetorizados em vectorstore_db/
@@ -50,13 +52,13 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 |-- resultados_rag.json                # Resultados gerados pelo pipeline RAG (548 casos)
 |-- analise_llm.json                   # Analise basica dos resultados LLM
 |-- analise_rag.json                   # Analise basica dos resultados RAG
-|-- analise_llm_avançada.json          # Métricas avançadas do LLM (F1, matriz de confusao)
-|-- analise_rag_avançada.json          # Métricas avançadas do RAG (F1, matriz de confusao)
-|-- analise_avançada_métricas.json     # Métricas avançadas consolidadas
-|-- comparação_llm_vs_rag.json         # Comparação lado a lado LLM vs RAG
+|-- analise_llm_avancada.json          # Métricas avançadas do LLM (F1, matriz de confusao)
+|-- analise_rag_avancada.json          # Métricas avançadas do RAG (F1, matriz de confusao)
+|-- analise_avancada_metricas.json     # Métricas avançadas consolidadas
+|-- comparacao_llm_vs_rag.json         # Comparação lado a lado LLM vs RAG
 |-- mcnemar_report.json                # Resultado do teste de McNemar
 |-- example.env                        # Exemplo de arquivo de variaveis de ambiente
-|-- requirements.txt                   # Dependências Python com versões
+|-- requirements.txt                   # Dependências Python com versões exatas
 |-- LICENSE                            # Licenca MIT
 `-- README.md                          # Este arquivo
 ```
@@ -69,15 +71,17 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 
 | Script | Entrada | Saída | Finalidade | Reivindicação |
 |---|---|---|---|---|
-| `00_gerar_dataset_final.py` | Executar na raiz do [OWASP BenchmarkJava](https://github.com/OWASP-Benchmark/BenchmarkJava): arquivos `.java` em `src/main/java/.../testcode/`, `expectedresults-1.2.csv`, `cwec_v4.18.xml`, `capec_v3.9.xml` | `dataset_completo_mestrado.jsonl` | ETL **opcional**: extrai, enriquece e serializa o dataset. **Nao e necessário para replicação** (dataset ja incluso) | - |
+| `00_gerar_dataset_final.py` | Executar na raiz do [OWASP BenchmarkJava](https://github.com/OWASP-Benchmark/BenchmarkJava): arquivos `.java` em `src/main/java/.../testcode/`, `expectedresults-1.2.csv`, `cwec_v4.18.xml`, `capec_v3.9.xml` | `dataset_completo_mestrado.jsonl` | ETL **opcional**: extrai, enriquece e serializa o dataset. **Nao e necessario para replicação** (dataset ja incluso) | - |
 | `01_construir_base_conhecimento.py` | `dataset_completo_mestrado.jsonl` | `vectorstore_db/` (ChromaDB), `dataset_teste_reservado.jsonl` | Vetoriza e indexa 80% dos dados para uso pelo RAG | - |
-| `02_retreinar_stride.py` | `vectorstore_db/`, `dataset_teste_reservado.jsonl`, API Groq | `resultados_rag.json` | Executa o pipeline RAG + LLM sobre os 548 casos de teste. **Nao e necessário para replicação** (resultados ja inclusos) | #1, #2 |
-| `02_retreinar_stride_baseline.py` | `dataset_teste_reservado.jsonl`, API Groq | `resultados_llm.json` | Executa o baseline LLM-only sobre os 548 casos de teste. **Nao e necessário para replicação** (resultados ja inclusos) | #1 |
+| `02_retreinar_stride.py` | `vectorstore_db/`, `dataset_teste_reservado.jsonl`, API Groq | `resultados_rag.json` | Executa o pipeline RAG + LLM sobre os 548 casos de teste. **Nao e necessario para replicação** (resultados ja inclusos) | #1, #2 |
+| `02_retreinar_stride_baseline.py` | `dataset_teste_reservado.jsonl`, API Groq | `resultados_llm.json` | Executa o baseline LLM-only sobre os 548 casos de teste. **Nao e necessario para replicação** (resultados ja inclusos) | #1 |
 | `03_analisar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Saída no terminal | Analise rapida de resultados individuais | - |
-| `04_analise_avancada.py` | `resultados_rag.json` ou `resultados_llm.json` | `analise_avançada_métricas.json` (padrão) | F1-score ponderado, matriz de confusão, analise de erros | #2 |
-| `05_reprocessar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Arquivo de resultados corrigido | Reprocessa apenas itens com JSON inválido, `erro` ou `raw_response` | - |
-| `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparação_llm_vs_rag.json` | Compara accuracy e cobertura STRIDE lado a lado | #1 |
+| `04_analise_avancada.py` | `resultados_rag.json` ou `resultados_llm.json` | `analise_avancada_metricas.json` (padrão) | F1-score ponderado, matriz de confusão, analise de erros, concordância STRIDE | #2 |
+| `05_reprocessar_resultados.py` | `resultados_rag.json` ou `resultados_llm.json` | Arquivo de resultados corrigido | Reprocessa apenas itens com JSON inválido, `erro` ou `raw_response`. Suporta `--mode rag|llm|auto` | - |
+| `06_comparar_resultados_llm_rag.py` | `resultados_llm.json`, `resultados_rag.json` | `comparacao_llm_vs_rag.json` | Compara accuracy e STRIDE Response Rate lado a lado | #1 |
 | `07_mcnemar_test.py` | `resultados_llm.json`, `resultados_rag.json` | `mcnemar_report.json` | Teste estatístico pareado de McNemar | #3 |
+| `08_analise_similaridade_treino_teste.py` | `dataset_completo_mestrado.jsonl`, `dataset_teste_reservado.jsonl` | `analise_similaridade_treino_teste.json` | Analise TF-IDF de deduplicacão/similaridade entre partições | - |
+| `reproduce_forma_a.py` | `resultados_rag.json`, `resultados_llm.json` | Relatório consolidado no terminal | Automação da Forma A: executa scripts 04, 06 e 07 em sequência e verifica valores esperados | #1, #2, #3 |
 
 ### Reprocessamento obrigatório quando houver erro nos resultados
 Se houver qualquer erro no JSON de resultados (por exemplo `erro`, `error`, `raw_response` ou resposta fora do formato esperado), **o reprocessamento deve ser executado antes de qualquer análise**.
@@ -93,16 +97,20 @@ O script `05_reprocessar_resultados.py` **não reexecuta todo o pipeline**. Ele 
 - Para facilitar o uso, se `--output` não for informado, o script gera automaticamente `<arquivo_entrada>_reprocessado.json`.
 - Se desejar substituir diretamente o arquivo original, use `--overwrite-input`.
 
+**Modo de reprocessamento (`--mode`):** O script detecta automaticamente se o arquivo de entrada é do pipeline RAG ou do baseline LLM-only pelo nome do arquivo, e usa o prompt e a configuração corretos para cada caso. Use `--mode rag`, `--mode llm` ou `--mode auto` (padrão).
+
 Exemplo de uso para o arquivo do baseline LLM:
 
 ```bash
 python 05_reprocessar_resultados.py --input resultados_llm.json
+# Detecção automática: modo 'llm' (sem contexto RAG, sem ChromaDB)
 ```
 
 Exemplo equivalente para o pipeline RAG:
 
 ```bash
 python 05_reprocessar_resultados.py --input resultados_rag.json
+# Detecção automática: modo 'rag' (com contexto ChromaDB)
 ```
 
 Exemplo para sobrescrever o arquivo original (sem etapa manual de renomear):
@@ -146,9 +154,11 @@ Os experimentos foram executados em:
 | Python | >= 3.10 | Testado com Python 3.10 e 3.12 |
 | Sistema Operacional | Windows 10/11, Linux (Ubuntu 20.04+) ou macOS 12+ | Sem requisito especifico de OS |
 | Git | Qualquer versão recente | Para clonar o repositório |
-| Chave de API Groq | - | Necessaria **apenas** para re-executar os scripts `02_*`. Gratuita em https://console.groq.com/ |
+| Chave de API Groq | - | Necessária **apenas** para re-executar os scripts `02_*`. Gratuita em https://console.groq.com/ |
 
-**Modelo LLM utilizado nos experimentos:** `llama-3.3-70b-versatile` via API Groq.
+**Modelo LLM utilizado nos experimentos:** `llama-3.3-70b-versatile` via API Groq, com `temperature=0`.
+
+**Modelo de embeddings utilizado nos experimentos:** `nomic-ai/nomic-embed-text-v1.5` (suporte a contextos de até 8k tokens), carregado via `langchain-huggingface` com `trust_remote_code=True`. Este modelo é declarado na Tabela 1 e na Seção 4.2 do artigo. Os arquivos `resultados_rag.json` foram gerados com este modelo. Os scripts `01_construir_base_conhecimento.py`, `02_retreinar_stride.py` e `05_reprocessar_resultados.py` estão alinhados com este modelo.
 
 ### Obtendo a chave de API Groq (opcional)
 
@@ -168,22 +178,22 @@ Todas as dependências estão listadas em [`requirements.txt`](requirements.txt)
 pip install -r requirements.txt
 ```
 
-| Pacote | Versão minima | Finalidade |
+| Pacote | Versão exata | Finalidade |
 |---|---|---|
-| `langchain` | >= 0.3.0 | Framework de orquestracao LLM |
-| `langchain-core` | >= 0.3.0 | Componentes base do LangChain |
-| `langchain-chroma` | >= 0.1.4 | Integracao ChromaDB com LangChain |
-| `langchain-huggingface` | >= 0.1.2 | Integracao HuggingFace Embeddings |
-| `langchain-groq` | >= 0.2.1 | Integracao com a API Groq |
-| `langchain-text-splitters` | >= 0.3.0 | Divisão de documentos em chunks |
-| `chromadb` | >= 0.5.0 | Banco de vetores persistente |
-| `sentence-transformers` | >= 3.0.0 | Modelo de embeddings semânticos (`all-MiniLM-L6-v2`) |
-| `python-dotenv` | >= 1.0.0 | Carregamento de variaveis de ambiente |
-| `tqdm` | >= 4.66.0 | Barras de progresso |
-| `numpy` | >= 1.26.0 | Computacao numerica (`04_analise_avancada.py`) |
-| `scikit-learn` | >= 1.5.0 | Métricas de classificacao: F1, matriz de confusão (`04_analise_avancada.py`) |
+| `langchain` | 1.3.15 | Framework de orquestracao LLM |
+| `langchain-core` | 1.5.4 | Componentes base do LangChain |
+| `langchain-chroma` | 1.1.0 | Integracao ChromaDB com LangChain |
+| `langchain-huggingface` | 1.2.2 | Integracao HuggingFace Embeddings |
+| `langchain-groq` | 1.1.3 | Integracao com a API Groq |
+| `langchain-text-splitters` | 1.1.2 | Divisão de documentos em chunks |
+| `chromadb` | 1.5.9 | Banco de vetores persistente |
+| `sentence-transformers` | 5.7.0 | Biblioteca para carregar o modelo `nomic-ai/nomic-embed-text-v1.5` |
+| `python-dotenv` | 1.2.2 | Carregamento de variaveis de ambiente |
+| `tqdm` | 4.70.0 | Barras de progresso |
+| `numpy` | 2.5.2 | Computacao numerica (`04_analise_avancada.py`) |
+| `scikit-learn` | 1.9.0 | Métricas de classificacao: F1, matriz de confusão (`04_analise_avancada.py`, `08_analise_similaridade_treino_teste.py`) |
 
-> **Nota:** `numpy` e `scikit-learn` são utilizados por `04_analise_avancada.py`. Os scripts `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py` (teste mínimo) usam exclusivamente a biblioteca padrão do Python e **não requerem instalação de dependências externas**.
+> **Nota:** As versões acima foram fixadas com `==` para garantir reprodutibilidade futura. O modelo de embeddings `nomic-ai/nomic-embed-text-v1.5` é carregado via `sentence-transformers` com `trust_remote_code=True` e requer ~270 MB de download na primeira execução. Os scripts `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py` (teste mínimo) usam exclusivamente a biblioteca padrão do Python e **não requerem instalação de dependências externas**.
 
 ## Dados externos (ja incluidos no repositório)
 
@@ -266,7 +276,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> A primeira execução pode demorar alguns minutos pois o modelo de embeddings `sentence-transformers/all-MiniLM-L6-v2` (~90 MB) e baixado automaticamente do HuggingFace Hub na primeira vez que `01_construir_base_conhecimento.py` e executado. Os scripts de analise (`04`, `06`, `07`) não realizam esse download.
+> A primeira execução pode demorar alguns minutos pois o modelo de embeddings `nomic-ai/nomic-embed-text-v1.5` (~270 MB) é baixado automaticamente do HuggingFace Hub na primeira vez que `01_construir_base_conhecimento.py` e executado. Os scripts de analise (`04`, `06`, `07`) não realizam esse download.
 
 ## 4. Configurar variaveis de ambiente (opcional)
 
@@ -329,14 +339,16 @@ python 06_comparar_resultados_llm_rag.py
 ================================================================================
 📊 COMPARAÇÃO LLM vs RAG
 ================================================================================
-LLM  - CWE Accuracy: 70.44% | STRIDE Coverage: 100.00%
-RAG  - CWE Accuracy: 90.88% | STRIDE Coverage: 100.00%
-DELTA - CWE Accuracy: +20.44 pp | STRIDE Coverage: +0.00 pp
+LLM  - CWE Accuracy: 70.44% | STRIDE Response Rate: 100.00%
+RAG  - CWE Accuracy: 90.88% | STRIDE Response Rate: 100.00%
+DELTA - CWE Accuracy: +20.44 pp | STRIDE Response Rate: +0.00 pp
 Melhor em CWE: RAG
 Melhor em STRIDE: Empate
 
 📁 Relatório salvo em: comparacao_llm_vs_rag.json
 ```
+
+> **Nota:** A métrica "STRIDE Response Rate" mede a proporção de respostas com classificação STRIDE não-vazia (distinta de "STRIDE Coverage" ou concordância STRIDE). A concordância STRIDE de 75% reportada na Tabela 6 do artigo é calculada pelo script `04_analise_avancada.py`.
 
 ## Passo 2 - Verificar teste de McNemar
 
@@ -370,9 +382,23 @@ Se ambos os scripts produzirem saídas similares as acima, o ambiente esta funci
 Esta secao descreve como reproduzir as tres reivindicações principais do artigo. Os resultados podem ser reproduzidos de **duas formas**:
 
 - **Forma A (rapida, sem API - recomendada para revisores):** A partir dos arquivos de resultados ja entregues (`resultados_rag.json` e `resultados_llm.json`). Tempo estimado: **< 2 minutos** no total. **Nao requer chave de API, GPU ou modelos de embeddings.**
-- **Forma B (completa, requer API Groq):** Re-executando os pipelines RAG e LLM do zero contra os 548 casos de teste. Tempo estimado: **2-4 horas** (sujeito ao rate limiting da API Groq gratuita).
+- **Forma B (completa, requer API Groq):** Re-executando os pipelines RAG e LLM do zero contra os 548 casos de teste. Tempo estimado: **2-4 horas** (sujeito ao rate limiting da API Groq gratuita). Inclui suporte a `--limit N` para execução reduzida.
 
-> **Recomendacao para revisores:** Use a **Forma A** para verificar as reivindicações. A Forma B e fornecida para transparencia metodologica completa, mas **não e necessária** para confirmar os resultados do artigo - todos os artefatos intermediarios ja estão disponíveis no repositório.
+> **Recomendacao para revisores:** Use a **Forma A** para verificar as reivindicações. A Forma B e fornecida para transparência metodologica completa, mas **não e necessaria** para confirmar os resultados do artigo - todos os artefatos intermediarios ja estão disponíveis no repositório.
+
+## Automação da Forma A (script único)
+
+Para reproduzir as três reivindicações em um único comando, execute:
+
+```bash
+python reproduce_forma_a.py
+```
+
+O script encadeia automaticamente os passos 04, 06 e 07, verifica os valores obtidos contra os esperados e gera um sumário consolidado. Compatível com Windows, Linux e macOS.
+
+---
+
+> **Nota sobre diferenças entre os prompts das configurações LLM-only e RAG:** Os prompts das duas configurações diferem não apenas pela presença do contexto recuperado (`{base_conhecimento}`), mas também no **conteúdo das regras de classificação**. O prompt da configuração RAG (`02_retreinar_stride.py`) contém regras adicionais de desambiguação — incluindo critérios explícitos para CWE-328 vs CWE-327 (MD5/SHA1 vs DES/RC4), gatilhos específicos para `session.setAttribute` (CWE-501), regras detalhadas sobre cookies (CWE-614) e análise do verbo da operação para STRIDE — que não estão presentes de forma equivalente no prompt do baseline (`02_retreinar_stride_baseline.py`). Portanto, a comparação entre as configurações não isola individualmente os efeitos de retrieval, enriquecimento ontológico e restrições de prompt — conforme declarado nas Seções 5.2 e 6 do artigo.
 
 ---
 
@@ -386,13 +412,13 @@ Esta secao descreve como reproduzir as tres reivindicações principais do artig
 python 06_comparar_resultados_llm_rag.py
 ```
 
-**Arquivo de saída:** `comparação_llm_vs_rag.json`
+**Arquivo de saída:** `comparacao_llm_vs_rag.json`
 
 **Resultado esperado:**
 
 ```
-LLM  - CWE Accuracy: 70.44% | STRIDE Coverage: 100.00%
-RAG  - CWE Accuracy: 90.88% | STRIDE Coverage: 100.00%
+LLM  - CWE Accuracy: 70.44% | STRIDE Response Rate: 100.00%
+RAG  - CWE Accuracy: 90.88% | STRIDE Response Rate: 100.00%
 DELTA - CWE Accuracy: +20.44 pp
 Melhor em CWE: RAG
 ```
@@ -406,9 +432,15 @@ Melhor em CWE: RAG
 python 01_construir_base_conhecimento.py
 
 # Passo B.2: Executar baseline LLM-only (requer GROQ_API_KEY, ~2h)
+# Para testar o pipeline fim a fim com poucos casos, use --limit N:
+python 02_retreinar_stride_baseline.py --limit 20
+# Execução completa:
 python 02_retreinar_stride_baseline.py
 
 # Passo B.3: Executar pipeline RAG (requer GROQ_API_KEY + vectorstore_db/, ~2h)
+# Para testar o pipeline fim a fim com poucos casos, use --limit N:
+python 02_retreinar_stride.py --limit 20
+# Execução completa:
 python 02_retreinar_stride.py
 
 # Passo B.4: Comparar resultados
@@ -444,10 +476,10 @@ python 06_comparar_resultados_llm_rag.py
 **Comando:**
 
 ```bash
-python 04_analise_avancada.py --input resultados_rag.json --output analise_rag_avançada.json
+python 04_analise_avancada.py --input resultados_rag.json --output analise_rag_avancada.json
 ```
 
-**Arquivo de saída:** `analise_rag_avançada.json`
+**Arquivo de saída:** `analise_rag_avancada.json`
 
 **Resultado esperado (trecho do terminal e do JSON de saída):**
 
@@ -455,7 +487,7 @@ python 04_analise_avancada.py --input resultados_rag.json --output analise_rag_a
 Carregados 548 resultados
 ...
 ANALISE AVANCADA CONCLUIDA!
-Relatorio salvo em: analise_rag_avançada.json
+Relatorio salvo em: analise_rag_avancada.json
 ```
 
 O campo `weighted_avg.f1-score` no JSON de saída corresponde ao F1-score ponderado de **0,9142** reportado no artigo.
@@ -465,7 +497,7 @@ O campo `weighted_avg.f1-score` no JSON de saída corresponde ao F1-score ponder
 Para comparar com o baseline LLM:
 
 ```bash
-python 04_analise_avancada.py --input resultados_llm.json --output analise_llm_avançada.json
+python 04_analise_avancada.py --input resultados_llm.json --output analise_llm_avancada.json
 ```
 
 ---

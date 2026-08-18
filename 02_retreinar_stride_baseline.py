@@ -36,7 +36,17 @@ PAUSA_LOTE = ler_env_int("RATE_LIMIT_PAUSA_LOTE", 5)
 logging.basicConfig(filename='retreino_stride_baseline_log.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Prompt para baseline LLM-only (mesmas regras, sem contexto RAG)
+# Prompt para baseline LLM-only.
+# NOTA IMPORTANTE: Este prompt difere do prompt RAG (02_retreinar_stride.py) não apenas pela
+# ausência do contexto recuperado ({base_conhecimento}), mas também no CONTEÚDO DAS REGRAS.
+# O prompt RAG contém regras adicionais de desambiguação:
+#   - CWE-328 vs CWE-327: critérios explícitos para MD5/SHA1 vs DES/RC4
+#   - CWE-501: gatilho específico para session.setAttribute com input do usuário
+#   - CWE-614: regras detalhadas sobre cookies (setSecure, setHttpOnly)
+#   - STRIDE Rule A: análise do verbo da operação (INSERT/SELECT/EXECUTE)
+# Portanto, a comparação entre as configurações não isola apenas o efeito do retrieval,
+# mas também o efeito do enriquecimento de regras no prompt — conforme declarado nas
+# Seções 5.2 e 6 do artigo.
 prompt_template_security = """
 You are a Software Security Expert. Analyze the Java code for CWE patterns and STRIDE threats.
 
@@ -106,6 +116,17 @@ def retreinar_stride_baseline():
 
     total_testes = len(dados_teste)
     print(f"\n📊 Total de testes: {total_testes}")
+
+    # Suporte a --limit N: permite execução reduzida para validação do pipeline
+    import argparse
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Limita o número de casos processados (ex.: --limit 20 para teste rápido)")
+    cli_args, _ = parser.parse_known_args()
+    if cli_args.limit is not None and cli_args.limit > 0:
+        dados_teste = dados_teste[:cli_args.limit]
+        total_testes = len(dados_teste)
+        print(f"⚡ Modo reduzido: processando apenas os primeiros {total_testes} casos (--limit {cli_args.limit})")
 
     # 2. Verificar se há resultados anteriores para continuar
     resultados = []

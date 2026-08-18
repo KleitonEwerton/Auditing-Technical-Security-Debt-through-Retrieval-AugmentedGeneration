@@ -29,7 +29,8 @@ def ler_env_int(nome_var: str, valor_padrao: int) -> int:
         return valor_padrao
 
 CAMINHO_DB = "vectorstore_db"
-MODELO_EMBEDDING = "sentence-transformers/all-MiniLM-L6-v2"
+# Modelo de embeddings utilizado nos experimentos (deve ser o mesmo usado em 01 e 02).
+MODELO_EMBEDDING = "nomic-ai/nomic-embed-text-v1.5"
 
 ARQUIVO_RESULTADOS_ENTRADA = "resultados_rag.json"
 
@@ -77,6 +78,17 @@ def parse_args():
         type=int,
         default=PAUSA_ENTRE_REQUISICOES,
         help="Tempo em segundos entre requisições ao LLM",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["rag", "llm", "auto"],
+        default="auto",
+        help=(
+            "Modo de reprocessamento: "
+            "'rag' usa contexto do ChromaDB (pipeline RAG), "
+            "'llm' reprocessa sem RAG (baseline LLM-only), "
+            "'auto' detecta automaticamente pelo nome do arquivo de entrada (padrão)."
+        ),
     )
     return parser.parse_args()
 
@@ -167,6 +179,51 @@ Previous invalid response:
 {resposta_invalida}
 """
 
+# Prompt para reprocessamento sem RAG (modo baseline LLM-only).
+# Espelha o prompt usado em 02_retreinar_stride_baseline.py.
+PROMPT_PRINCIPAL_LLM_ONLY = """
+You are a Software Security Expert. Analyze the Java code for CWE patterns and STRIDE threats.
+
+---
+TARGET CODE:
+{codigo_alvo}
+---
+
+===== 1. CWE PATTERN DEFINITIONS (Strict Syntax Matching) =====
+
+PRIORITY RULES:
+
+   - CWE-22: File access with input.
+   - CWE-78: `Runtime.exec` or `ProcessBuilder`.
+   - CWE-79: Outputting input to JSP/HTML.
+   - CWE-89: SQL construction with concatenation (`+`).
+   - CWE-90: LDAP filter construction.
+   - CWE-328 (Weak Hash) vs CWE-327 (Broken Crypto)**.
+   - CWE-330: security context.
+   - CWE-501 (Trust Boundary Violation)**.
+   - CWE-614 (Insecure Cookie)**.
+   - CWE-643: XPath expression construction.
+
+If NO pattern matches, return CWE: "None".
+
+===== 2. STRIDE LOGIC RULES (Secondary Goal) =====
+Once a CWE is found, determine the specific threat based on the OPERATION:
+
+Rule: Map to STRIDE
+- IF Write Context (e.g., SQL INSERT) -> **Tampering**
+- IF Read Context (e.g., SQL SELECT) -> **Information Disclosure**
+- IF Execute Context as Root/Admin -> **Elevation of Privilege**
+- IF Authentication Context (Passwords/Hashes/Cookies) -> **Spoofing**
+
+===== RESPONSE FORMAT =====
+Respond strictly in JSON format:
+{{
+    "cwe_id": "CWE-XXX" | "None",
+    "explanation": "1. Pattern: Detected [CWE Name] in variable 'x'. 2. Context: The code performs a [INSERT/SELECT/EXEC] operation. 3. Threat: Since it is a [Write/Read] operation, the STRIDE is [Category].",
+    "stride": "Tampering" | "Spoofing" | "Repudiation" | "Information Disclosure" | "Denial of Service" | "Elevation of Privilege" | "None"
+}}
+"""
+
 
 def normalizar_texto_resposta(resposta_texto: str) -> str:
     resposta_texto = resposta_texto.strip()
@@ -222,14 +279,26 @@ def carregar_contexto_rag(db, codigo: str) -> str:
     return contexto_str
 
 
-def reprocessar_item(item, chain_principal, chain_reparo, db):
-    codigo = item.get("codigo_input", "")
-    contexto_str = carregar_contexto_rag(db, codigo)
+def detectar_modo(arquivo_entrada: str) -> str:
+    """Detecta automaticamente se o arquivo corresponde ao baseline LLM ou ao pipeline RAG."""
+    nome = Path(arquivo_entrada).name.lower()
+    if "llm" in nome:
+        return "llm"
+    return "rag"
 
-    resposta = chain_principal.invoke({
-        "codigo_alvo": codigo,
-        "base_conhecimento": contexto_str
-    })
+
+def reprocessar_item(item, chain_principal, chain_reparo, db, modo_rag: bool = True):
+    codigo = item.get("codigo_input", "")
+
+    if modo_rag and db is not None:
+        contexto_str = carregar_contexto_rag(db, codigo)
+        resposta = chain_principal.invoke({
+            "codigo_alvo": codigo,
+            "base_conhecimento": contexto_str
+        })
+    else:
+        contexto_str = ""
+        resposta = chain_principal.invoke({"codigo_alvo": codigo})
 
     resposta_texto = getattr(resposta, "content", str(resposta))
     resultado_llm = tentar_parsear_json(resposta_texto)
@@ -257,6 +326,17 @@ def reprocessar_item(item, chain_principal, chain_reparo, db):
 
 def main():
     args = parse_args()
+
+    # Determinar o modo de reprocessamento
+    modo = args.mode
+    if modo == "auto":
+        modo = detectar_modo(args.arquivo_entrada)
+        print(f"🔍 Modo detectado automaticamente: '{modo}' (baseado no nome do arquivo '{Path(args.arquivo_entrada).name}')")
+    else:
+        print(f"⚙️  Modo definido manualmente: '{modo}'")
+
+    modo_rag = (modo == "rag")
+
     arquivo_saida_final = resolver_arquivo_saida(
         args.arquivo_entrada,
         args.arquivo_saida,
@@ -267,13 +347,17 @@ def main():
     print("🔄 REPROCESSAMENTO DE RESULTADOS INVÁLIDOS")
     print("=" * 80)
     print(f"⚙️  Pausa padrão entre requisições: {args.pause}s")
+    if modo_rag:
+        print("📚 Modo RAG: contexto do ChromaDB será utilizado no reprocessamento.")
+    else:
+        print("🤖 Modo LLM-only: reprocessamento SEM contexto RAG (baseline).")
 
     if not os.path.exists(args.arquivo_entrada):
         print(f"❌ Arquivo {args.arquivo_entrada} não encontrado.")
         return
 
-    if not os.path.exists(args.caminho_db):
-        print("❌ Banco de vetores não encontrado.")
+    if modo_rag and not os.path.exists(args.caminho_db):
+        print("❌ Banco de vetores não encontrado. Use --mode llm para reprocessar sem RAG.")
         return
 
     with open(args.arquivo_entrada, 'r', encoding='utf-8') as f:
@@ -294,10 +378,22 @@ def main():
             print(f"📁 Cópia preservada gerada em: {arquivo_saida_final}")
         return
 
-    embedding_function = HuggingFaceEmbeddings(model_name=MODELO_EMBEDDING)
-    db = Chroma(persist_directory=args.caminho_db, embedding_function=embedding_function)
+    # Inicializar ChromaDB apenas se modo RAG
+    db = None
+    if modo_rag:
+        # trust_remote_code=True é necessário para o modelo nomic-embed-text-v1.5
+        embedding_function = HuggingFaceEmbeddings(
+            model_name=MODELO_EMBEDDING,
+            model_kwargs={"trust_remote_code": True}
+        )
+        db = Chroma(persist_directory=args.caminho_db, embedding_function=embedding_function)
 
-    prompt_principal = ChatPromptTemplate.from_template(PROMPT_PRINCIPAL)
+    # Selecionar prompt correto conforme o modo
+    if modo_rag:
+        prompt_principal = ChatPromptTemplate.from_template(PROMPT_PRINCIPAL)
+    else:
+        prompt_principal = ChatPromptTemplate.from_template(PROMPT_PRINCIPAL_LLM_ONLY)
+
     prompt_reparo = ChatPromptTemplate.from_template(PROMPT_REPARO_JSON)
     llm = ChatGroq(temperature=0, model="llama-3.3-70b-versatile")
     chain_principal = prompt_principal | llm
@@ -311,7 +407,7 @@ def main():
         if teste_idx in indice_invalidos:
             print(f"🔍 Reprocessando teste {teste_idx + 1}...", end=" ", flush=True)
             try:
-                item = reprocessar_item(item, chain_principal, chain_reparo, db)
+                item = reprocessar_item(item, chain_principal, chain_reparo, db, modo_rag=modo_rag)
                 print("✅")
                 logging.info(f"Teste {teste_idx} reprocessado com sucesso")
             except Exception as e:

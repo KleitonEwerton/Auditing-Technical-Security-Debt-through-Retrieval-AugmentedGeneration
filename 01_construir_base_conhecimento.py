@@ -15,7 +15,9 @@ load_dotenv()
 ARQUIVO_ENTRADA = "dataset_completo_mestrado.jsonl"
 ARQUIVO_TESTE = "dataset_teste_reservado.jsonl"
 CAMINHO_DB = "vectorstore_db"
-MODELO_EMBEDDING = "sentence-transformers/all-MiniLM-L6-v2"
+# Modelo de embeddings utilizado nos experimentos e declarado no artigo (Tabela 1, Seção 4.2).
+# IMPORTANTE: os resultados_rag.json foram gerados com este modelo.
+MODELO_EMBEDDING = "nomic-ai/nomic-embed-text-v1.5"
 PERCENTUAL_TESTE = 0.20
 
 def carregar_e_splitar_dados():
@@ -115,7 +117,11 @@ def criar_vectorstore():
 		shutil.rmtree(CAMINHO_DB)
 
 	print(f"\n🧠 Inicializando Embeddings ({MODELO_EMBEDDING})...")
-	embedding_model = HuggingFaceEmbeddings(model_name=MODELO_EMBEDDING)
+	# trust_remote_code=True é necessário para o modelo nomic-embed-text-v1.5
+	embedding_model = HuggingFaceEmbeddings(
+		model_name=MODELO_EMBEDDING,
+		model_kwargs={"trust_remote_code": True}
+	)
 
 	print("⚡ Vetorizando e persistindo no ChromaDB...")
 	tamanho_lote = 100

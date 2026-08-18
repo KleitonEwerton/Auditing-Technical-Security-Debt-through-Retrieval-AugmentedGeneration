@@ -168,7 +168,10 @@ def extrair_metricas(resultados: List[Dict]) -> Dict:
             distribuicao_stride[stride_predito] += 1
 
     cwe_accuracy = (cwe_acertos / cwe_total * 100) if cwe_total else 0.0
-    stride_coverage = (stride_aceitos / validos * 100) if validos else 0.0
+    # STRIDE Response Rate: proporção de respostas com classificação STRIDE não-vazia.
+    # NOTA: esta métrica NÃO mede concordância STRIDE (75% reportada na Tabela 6 do artigo).
+    # A concordância STRIDE é calculada pelo script 04_analise_avancada.py.
+    stride_response_rate = (stride_aceitos / validos * 100) if validos else 0.0
 
     return {
         'total': total,
@@ -182,7 +185,7 @@ def extrair_metricas(resultados: List[Dict]) -> Dict:
         'stride': {
             'classificados': stride_aceitos,
             'total_validos': validos,
-            'cobertura_percentual': round(stride_coverage, 2),
+            'taxa_resposta_percentual': round(stride_response_rate, 2),
             'distribuicao': dict(distribuicao_stride),
         },
         'distribuicao_cwe_predita': dict(distribuicao_cwe),
@@ -195,11 +198,11 @@ def montar_comparacao(metricas_llm: Dict, metricas_rag: Dict) -> Dict:
 
     return {
         'cwe_accuracy_delta': delta(metricas_rag['cwe']['acuracia_percentual'], metricas_llm['cwe']['acuracia_percentual']),
-        'stride_coverage_delta': delta(metricas_rag['stride']['cobertura_percentual'], metricas_llm['stride']['cobertura_percentual']),
+        'stride_response_rate_delta': delta(metricas_rag['stride']['taxa_resposta_percentual'], metricas_llm['stride']['taxa_resposta_percentual']),
         'validos_delta': metricas_rag['validos'] - metricas_llm['validos'],
         'invalidos_delta': metricas_rag['invalidos'] - metricas_llm['invalidos'],
         'melhor_em_cwe': 'RAG' if metricas_rag['cwe']['acuracia_percentual'] > metricas_llm['cwe']['acuracia_percentual'] else 'LLM' if metricas_rag['cwe']['acuracia_percentual'] < metricas_llm['cwe']['acuracia_percentual'] else 'Empate',
-        'melhor_em_stride': 'RAG' if metricas_rag['stride']['cobertura_percentual'] > metricas_llm['stride']['cobertura_percentual'] else 'LLM' if metricas_rag['stride']['cobertura_percentual'] < metricas_llm['stride']['cobertura_percentual'] else 'Empate',
+        'melhor_em_stride': 'RAG' if metricas_rag['stride']['taxa_resposta_percentual'] > metricas_llm['stride']['taxa_resposta_percentual'] else 'LLM' if metricas_rag['stride']['taxa_resposta_percentual'] < metricas_llm['stride']['taxa_resposta_percentual'] else 'Empate',
     }
 
 
@@ -243,9 +246,9 @@ def main():
     print("=" * 80)
     print("📊 COMPARAÇÃO LLM vs RAG")
     print("=" * 80)
-    print(f"LLM  - CWE Accuracy: {metricas_llm['cwe']['acuracia_percentual']:.2f}% | STRIDE Coverage: {metricas_llm['stride']['cobertura_percentual']:.2f}%")
-    print(f"RAG  - CWE Accuracy: {metricas_rag['cwe']['acuracia_percentual']:.2f}% | STRIDE Coverage: {metricas_rag['stride']['cobertura_percentual']:.2f}%")
-    print(f"DELTA - CWE Accuracy: {comparacao['cwe_accuracy_delta']:+.2f} pp | STRIDE Coverage: {comparacao['stride_coverage_delta']:+.2f} pp")
+    print(f"LLM  - CWE Accuracy: {metricas_llm['cwe']['acuracia_percentual']:.2f}% | STRIDE Response Rate: {metricas_llm['stride']['taxa_resposta_percentual']:.2f}%")
+    print(f"RAG  - CWE Accuracy: {metricas_rag['cwe']['acuracia_percentual']:.2f}% | STRIDE Response Rate: {metricas_rag['stride']['taxa_resposta_percentual']:.2f}%")
+    print(f"DELTA - CWE Accuracy: {comparacao['cwe_accuracy_delta']:+.2f} pp | STRIDE Response Rate: {comparacao['stride_response_rate_delta']:+.2f} pp")
     print(f"Melhor em CWE: {comparacao['melhor_em_cwe']}")
     print(f"Melhor em STRIDE: {comparacao['melhor_em_stride']}")
 

@@ -28,7 +28,9 @@ def ler_env_int(nome_var: str, valor_padrao: int) -> int:
 
 # --- CONFIGURAÇÕES ---
 CAMINHO_DB = "vectorstore_db"
-MODELO_EMBEDDING = "sentence-transformers/all-MiniLM-L6-v2"
+# Modelo de embeddings utilizado nos experimentos e declarado no artigo (Tabela 1, Seção 4.2).
+# IMPORTANTE: os resultados_rag.json foram gerados com este modelo.
+MODELO_EMBEDDING = "nomic-ai/nomic-embed-text-v1.5"
 ARQUIVO_TESTE = "dataset_teste_reservado.jsonl"
 ARQUIVO_RESULTADOS_NOVO = "resultados_rag.json"
 
@@ -112,7 +114,11 @@ def retreinar_stride():
     )
 
     # 1. Carregar Vector Store
-    embedding_function = HuggingFaceEmbeddings(model_name=MODELO_EMBEDDING)
+    # trust_remote_code=True é necessário para o modelo nomic-embed-text-v1.5
+    embedding_function = HuggingFaceEmbeddings(
+        model_name=MODELO_EMBEDDING,
+        model_kwargs={"trust_remote_code": True}
+    )
     if not os.path.exists(CAMINHO_DB):
         print("❌ Erro: Banco de vetores não encontrado.")
         return
@@ -135,6 +141,17 @@ def retreinar_stride():
 
     total_testes = len(dados_teste)
     print(f"\n📊 Total de testes: {total_testes}")
+
+    # Suporte a --limit N: permite execução reduzida para validação do pipeline
+    import argparse
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Limita o número de casos processados (ex.: --limit 20 para teste rápido)")
+    cli_args, _ = parser.parse_known_args()
+    if cli_args.limit is not None and cli_args.limit > 0:
+        dados_teste = dados_teste[:cli_args.limit]
+        total_testes = len(dados_teste)
+        print(f"⚡ Modo reduzido: processando apenas os primeiros {total_testes} casos (--limit {cli_args.limit})")
 
     # 3. Verificar se há resultados anteriores para continuar
     resultados = []
