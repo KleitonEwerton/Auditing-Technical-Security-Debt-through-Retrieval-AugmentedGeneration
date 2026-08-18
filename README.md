@@ -143,8 +143,8 @@ Os experimentos foram executados em:
 
 - **CPU:** Intel Core i7 (ou equivalente), mínimo 4 cores
 - **RAM:** Mínimo 8 GB (recomendado 16 GB para execução completa do pipeline RAG com ChromaDB)
-- **Armazenamento:** Mínimo 15 GB livres (datasets + embeddings ChromaDB + modelo Sentence Transformers ~1,5 GB)
-- **Internet:** Necessaria para download do modelo de embeddings na primeira execução (`sentence-transformers/all-MiniLM-L6-v2`, ~90 MB via HuggingFace Hub) e para chamadas a API Groq
+- **Armazenamento:** Mínimo 15 GB livres (datasets + embeddings ChromaDB + modelo Sentence Transformers ~1.3 GB)
+- **Internet:** Necessaria para download do modelo de embeddings na primeira execução (`nomic-ai/nomic-embed-text-v1.5`, via HuggingFace Hub) e para chamadas a API Groq
 
 > **Nota para revisores:** Os scripts de analise e comparação (`04_analise_avancada.py`, `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py`) **não requerem GPU, API externa nem modelos de embeddings** - operam apenas sobre os arquivos JSON de resultados ja entregues. Para reproduzir as reivindicações do artigo, esses scripts são suficientes e executam em menos de 2 minutos em qualquer maquina com Python.
 
