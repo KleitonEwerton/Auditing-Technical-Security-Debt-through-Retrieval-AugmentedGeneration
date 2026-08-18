@@ -83,8 +83,9 @@ Este README esta organizado conforme o modelo mínimo obrigatorio do SBSeg 2026:
 | `08_analise_similaridade_treino_teste.py` | `dataset_completo_mestrado.jsonl`, `dataset_teste_reservado.jsonl` | `analise_similaridade_treino_teste.json` | Analise TF-IDF de deduplicacão/similaridade entre partições | - |
 | `reproduce_forma_a.py` | `resultados_rag.json`, `resultados_llm.json` | Relatório consolidado no terminal | Automação da Forma A: executa scripts 04, 06 e 07 em sequência e verifica valores esperados | #1, #2, #3 |
 
-### Reprocessamento obrigatório quando houver erro nos resultados
-Se houver qualquer erro no JSON de resultados (por exemplo `erro`, `error`, `raw_response` ou resposta fora do formato esperado), **o reprocessamento deve ser executado antes de qualquer análise**.
+### Reprocessamento obrigatório quando houver erro nos resultados (Condicional)
+Esse passo é necessário apenas para avaliação completa com novos resultados,  para o testes mínimos e replicação dos resultados, não é necessário.
+Se houver qualquer erro no JSON de resultados (por exemplo, `erro`, `error`, `raw_response` ou resposta fora do formato esperado), **o reprocessamento deve ser executado antes de qualquer análise**.
 
 O script `05_reprocessar_resultados.py` **não reexecuta todo o pipeline**. Ele identifica somente os casos inválidos e reprocessa apenas estes itens usando o banco vetorial ChromaDB e uma nova chamada ao LLM.
 
