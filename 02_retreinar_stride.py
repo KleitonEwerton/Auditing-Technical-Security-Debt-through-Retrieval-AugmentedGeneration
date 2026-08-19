@@ -34,6 +34,19 @@ MODELO_EMBEDDING = "nomic-ai/nomic-embed-text-v1.5"
 ARQUIVO_TESTE = "dataset_teste_reservado.jsonl"
 ARQUIVO_RESULTADOS_NOVO = "resultados_rag.json"
 
+# Modelo LLM: lido de GROQ_LLM_MODEL no .env para facilitar troca em caso de depreciação.
+# O modelo utilizado nos experimentos originais foi llama-3.3-70b-versatile, depreciado
+# pela Groq em 16/ago/2026. Substitutos recomendados: openai/gpt-oss-120b ou qwen/qwen3.6-27b.
+# Ref: https://console.groq.com/docs/deprecations#august-16-2026-llama318binstant-and-llama3370bversatile
+MODELO_LLM_ORIGINAL = "llama-3.3-70b-versatile"  # usado nos experimentos do artigo (depreciado)
+MODELO_LLM = os.getenv("GROQ_LLM_MODEL", MODELO_LLM_ORIGINAL)
+if MODELO_LLM == MODELO_LLM_ORIGINAL:
+    logging.warning(
+        "AVISO: O modelo '%s' foi depreciado pela Groq em 16/ago/2026. "
+        "Defina GROQ_LLM_MODEL no .env com um substituto (ex.: openai/gpt-oss-120b).",
+        MODELO_LLM_ORIGINAL,
+    )
+
 # Rate Limiting
 PAUSA_ENTRE_REQUISICOES = ler_env_int("RATE_LIMIT_PAUSA_ENTRE_REQUISICOES", 1)  # segundos
 REQUISICOES_POR_LOTE = ler_env_int("RATE_LIMIT_REQUISICOES_POR_LOTE", 5)
@@ -169,8 +182,12 @@ def retreinar_stride():
                 print(f"✓ Continuando do teste {teste_inicial} (total de {len(resultados)} resultados salvos)")
 
     # 4. Inicializar LLM
+    print(f"\n🤖 Modelo LLM: {MODELO_LLM}")
+    if MODELO_LLM == MODELO_LLM_ORIGINAL:
+        print("⚠️  AVISO: este modelo foi depreciado pela Groq em 16/ago/2026.")
+        print("   Defina GROQ_LLM_MODEL no .env (ex.: openai/gpt-oss-120b).")
     prompt = ChatPromptTemplate.from_template(prompt_template_security)
-    llm = ChatGroq(temperature=0, model="llama-3.3-70b-versatile")
+    llm = ChatGroq(temperature=0, model=MODELO_LLM)
     chain = prompt | llm
 
     # 5. Executar testes

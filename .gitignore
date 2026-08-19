@@ -1,4 +1,6 @@
 # Byte-compiled / optimized / DLL files
+# Arquivos utilitários locais com chave de API (não versionados)
+listar_modelos.py
 __pycache__/
 *.py[codz]
 *$py.class

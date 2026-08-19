@@ -93,7 +93,8 @@ O script `05_reprocessar_resultados.py` **não reexecuta todo o pipeline**. Ele 
   - `erro` preenchido;
   - `resultado_llm` com `error == "Resposta não é JSON válido"`;
   - `resultado_llm` contendo `raw_response`;
-  - respostas fora do formato JSON esperado.
+  - respostas fora do formato JSON esperado;
+  - campos `cwe_id` ou `stride` com valor "None" (que indicam que o modelo falhou em mapear a vulnerabilidade adequadamente).
 - Casos já válidos são preservados exatamente como estão no arquivo original.
 - Para facilitar o uso, se `--output` não for informado, o script gera automaticamente `<arquivo_entrada>_reprocessado.json`.
 - Se desejar substituir diretamente o arquivo original, use `--overwrite-input`.
@@ -157,7 +158,14 @@ Os experimentos foram executados em:
 | Git | Qualquer versão recente | Para clonar o repositório |
 | Chave de API Groq | - | Necessária **apenas** para re-executar os scripts `02_*`. Gratuita em https://console.groq.com/ |
 
-**Modelo LLM utilizado nos experimentos:** `llama-3.3-70b-versatile` via API Groq, com `temperature=0`.
+**Modelo LLM utilizado nos experimentos originais:** `llama-3.3-70b-versatile` via API Groq, com `temperature=0`.
+
+> **AVISO — Deprecação do modelo LLM (16/ago/2026):** A Groq descontinuou o modelo `llama-3.3-70b-versatile` em 16/ago/2026 (aplica-se ao plano gratuito e developer-tier). Os resultados entregues no repositório (`resultados_rag.json`, `resultados_llm.json`) foram gerados com esse modelo e **não são afetados**. Para re-gerar resultados (Forma B), configure o substituto no `.env`:
+> ```
+> GROQ_LLM_MODEL=openai/gpt-oss-120b    # substituto recomendado pela Groq
+> # ou: GROQ_LLM_MODEL=qwen/qwen3.6-27b  # alternativa de menor custo
+> ```
+> Ref.: https://console.groq.com/docs/deprecations#august-16-2026-llama318binstant-and-llama3370bversatile
 
 **Modelo de embeddings utilizado nos experimentos:** `nomic-ai/nomic-embed-text-v1.5` (suporte a contextos de até 8k tokens), carregado via `langchain-huggingface` com `trust_remote_code=True`. Este modelo é declarado na Tabela 1 e na Seção 4.2 do artigo. Os arquivos `resultados_rag.json` foram gerados com este modelo. Os scripts `01_construir_base_conhecimento.py`, `02_retreinar_stride.py` e `05_reprocessar_resultados.py` estão alinhados com este modelo.
 
@@ -450,7 +458,7 @@ python 06_comparar_resultados_llm_rag.py
 
 > **IMPORTANTE - Scripts 02 não são necessários para replicação:** Os scripts `02_retreinar_stride.py` e `02_retreinar_stride_baseline.py` **não precisam ser executados** para reproduzir as reivindicações do artigo. Os arquivos `resultados_rag.json` e `resultados_llm.json` ja estão inclusos no repositório e contem os 548 resultados completos dos experimentos originais. Execute esses scripts apenas se quiser re-gerar os resultados do zero por razoes de transparencia metodologica.
 
-> **Variacoes esperadas em novas execuções (Forma B):** LLMs são sistemas **não-deterministicos** - mesmo com o mesmo modelo e prompt, pequenas variacoes nas respostas são esperadas entre execuções distintas. Alem disso, modelos com capacidades superiores ou inferiores ao `llama-3.3-70b-versatile` produzirao resultados diferentes. Portanto, ao re-executar os scripts `02_*`, os valores exatos de acuracia e F1 podem diferir ligeiramente dos reportados no artigo. Isso e esperado e não invalida as conclusoes gerais.
+> **Variacoes esperadas em novas execuções (Forma B):** LLMs são sistemas **não-deterministicos** - mesmo com o mesmo modelo e prompt, pequenas variacoes nas respostas são esperadas entre execuções distintas. O modelo original dos experimentos (`llama-3.3-70b-versatile`) foi depreciado pela Groq em 16/ago/2026; ao usar substitutos como `openai/gpt-oss-120b` ou `qwen/qwen3.6-27b`, os valores exatos de acurácia e F1 podem diferir dos reportados no artigo. Isso e esperado e não invalida as conclusoes gerais. Consulte `GROQ_LLM_MODEL` no `.env` e `example.env`.
 
 > **Inconsistencias e falhas durante a execução dos scripts 02 (Forma B):** Durante a execução dos pipelines RAG e LLM, podem ocorrer falhas pontuais, incluindo:
 >

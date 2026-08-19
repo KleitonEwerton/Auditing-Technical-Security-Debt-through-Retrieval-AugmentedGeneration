@@ -32,6 +32,13 @@ CAMINHO_DB = "vectorstore_db"
 # Modelo de embeddings utilizado nos experimentos (deve ser o mesmo usado em 01 e 02).
 MODELO_EMBEDDING = "nomic-ai/nomic-embed-text-v1.5"
 
+# Modelo LLM: lido de GROQ_LLM_MODEL no .env para facilitar troca em caso de depreciação.
+# O modelo utilizado nos experimentos originais foi llama-3.3-70b-versatile, depreciado
+# pela Groq em 16/ago/2026. Substitutos recomendados: openai/gpt-oss-120b ou qwen/qwen3.6-27b.
+# Ref: https://console.groq.com/docs/deprecations#august-16-2026-llama318binstant-and-llama3370bversatile
+MODELO_LLM_ORIGINAL = "llama-3.3-70b-versatile"  # usado nos experimentos do artigo (depreciado)
+MODELO_LLM = os.getenv("GROQ_LLM_MODEL", MODELO_LLM_ORIGINAL)
+
 ARQUIVO_RESULTADOS_ENTRADA = "resultados_rag.json"
 
 PAUSA_ENTRE_REQUISICOES = ler_env_int(
@@ -255,7 +262,10 @@ def extrair_casos_invalidos(resultados):
             invalidos.append(item)
             continue
         if isinstance(resultado_llm, dict) and (
-            resultado_llm.get("error") == "Resposta não é JSON válido" or "raw_response" in resultado_llm
+            resultado_llm.get("error") == "Resposta não é JSON válido" 
+            or "raw_response" in resultado_llm
+            or str(resultado_llm.get("cwe_id")).strip().lower() == "none"
+            or str(resultado_llm.get("stride")).strip().lower() == "none"
         ):
             invalidos.append(item)
     return invalidos
@@ -395,7 +405,7 @@ def main():
         prompt_principal = ChatPromptTemplate.from_template(PROMPT_PRINCIPAL_LLM_ONLY)
 
     prompt_reparo = ChatPromptTemplate.from_template(PROMPT_REPARO_JSON)
-    llm = ChatGroq(temperature=0, model="llama-3.3-70b-versatile")
+    llm = ChatGroq(temperature=0, model=MODELO_LLM)
     chain_principal = prompt_principal | llm
     chain_reparo = prompt_reparo | llm
 
