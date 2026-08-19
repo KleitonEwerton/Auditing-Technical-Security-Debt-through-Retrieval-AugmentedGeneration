@@ -201,6 +201,7 @@ pip install -r requirements.txt
 | `tqdm` | 4.70.0 | Barras de progresso |
 | `numpy` | 2.5.2 | Computacao numerica (`04_analise_avancada.py`) |
 | `scikit-learn` | 1.9.0 | Métricas de classificacao: F1, matriz de confusão (`04_analise_avancada.py`, `08_analise_similaridade_treino_teste.py`) |
+| `einops` | 0.8.2 | Requisito do modelo `nomic-ai/nomic-embed-text-v1.5` |
 
 > **Nota:** As versões acima foram fixadas com `==` para garantir reprodutibilidade futura. O modelo de embeddings `nomic-ai/nomic-embed-text-v1.5` é carregado via `sentence-transformers` com `trust_remote_code=True` e requer ~270 MB de download na primeira execução. Os scripts `06_comparar_resultados_llm_rag.py` e `07_mcnemar_test.py` (teste mínimo) usam exclusivamente a biblioteca padrão do Python e **não requerem instalação de dependências externas**.
 
@@ -437,18 +438,18 @@ Melhor em CWE: RAG
 **Comando (Forma B - re-geração completa):**
 
 ```bash
-# Passo B.1: Construir a base de conhecimento RAG (requer ~8 GB RAM, ~10 min)
+# Passo B.1: Construir a base de conhecimento RAG (requer ~8 GB RAM, ~50 min)
 python 01_construir_base_conhecimento.py
 
-# Passo B.2: Executar baseline LLM-only (requer GROQ_API_KEY, ~2h)
+# Passo B.2: Executar baseline LLM-only (requer GROQ_API_KEY, ~3h)
 # Para testar o pipeline fim a fim com poucos casos, use --limit N:
-python 02_retreinar_stride_baseline.py --limit 20
+python 02_retreinar_stride_baseline.py --limit 10
 # Execução completa:
 python 02_retreinar_stride_baseline.py
 
 # Passo B.3: Executar pipeline RAG (requer GROQ_API_KEY + vectorstore_db/, ~2h)
 # Para testar o pipeline fim a fim com poucos casos, use --limit N:
-python 02_retreinar_stride.py --limit 20
+python 02_retreinar_stride.py --limit 10
 # Execução completa:
 python 02_retreinar_stride.py
 
