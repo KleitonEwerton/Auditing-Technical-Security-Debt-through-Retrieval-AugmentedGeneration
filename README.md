@@ -312,6 +312,10 @@ RATE_LIMIT_PAUSA_ENTRE_REQUISICOES=2
 RATE_LIMIT_REQUISICOES_POR_LOTE=10
 RATE_LIMIT_PAUSA_LOTE=10
 
+# Backoff automático ao atingir cota da API (erro 429 / rate_limit_exceeded)
+RATE_LIMIT_QUOTA_WAIT=60
+RATE_LIMIT_QUOTA_MAX_RETRIES=3
+
 # Opcional: pausa específica do script 05_reprocessar_resultados.py
 RATE_LIMIT_REPROCESSAR_PAUSA_ENTRE_REQUISICOES=2
 ```
@@ -324,8 +328,10 @@ Cada chave/plano da Groq pode ter limites diferentes (requisições por minuto, 
 - `RATE_LIMIT_REQUISICOES_POR_LOTE`: quantidade de requisições antes de aplicar pausa maior.
 - `RATE_LIMIT_PAUSA_LOTE`: pausa (em segundos) aplicada após cada lote.
 - `RATE_LIMIT_REPROCESSAR_PAUSA_ENTRE_REQUISICOES`: pausa específica do reprocessamento (`05_reprocessar_resultados.py`).
+- `RATE_LIMIT_QUOTA_WAIT`: segundos de espera automática quando a API retorna erro de quota/429 antes de tentar novamente (padrão: `60`).
+- `RATE_LIMIT_QUOTA_MAX_RETRIES`: número máximo de tentativas automáticas por requisição antes de registrar falha e seguir em frente (padrão: `3`).
 
-Se sua chave estiver sofrendo `429`, `timeout` ou instabilidade, aumente as pausas e/ou reduza o tamanho do lote.
+Se sua chave estiver sofrendo `429`, `timeout` ou instabilidade, aumente as pausas e/ou reduza o tamanho do lote. Os scripts `02_*` detectam erros de quota automaticamente, aguardam `RATE_LIMIT_QUOTA_WAIT` segundos e repetem até `RATE_LIMIT_QUOTA_MAX_RETRIES` vezes. Casos que falham após todos os retries são salvos com um campo `"erro"` e podem ser reprocessados seletivamente na próxima execução — o script perguntará se deseja retomar e reprocessará **apenas os casos que falharam**, do primeiro ao último, em ordem crescente.
 
 > Observação: no `05_reprocessar_resultados.py`, a flag `--pause` tem prioridade sobre o valor do `.env`.
 
