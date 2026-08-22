@@ -51,6 +51,10 @@ if MODELO_LLM == MODELO_LLM_ORIGINAL:
 PAUSA_ENTRE_REQUISICOES = ler_env_int("RATE_LIMIT_PAUSA_ENTRE_REQUISICOES", 1)  # segundos
 REQUISICOES_POR_LOTE = ler_env_int("RATE_LIMIT_REQUISICOES_POR_LOTE", 5)
 PAUSA_LOTE = ler_env_int("RATE_LIMIT_PAUSA_LOTE", 5)
+# Quota backoff: tempo de espera (s) e máximo de tentativas ao atingir limite de cota da API.
+# Configurável via RATE_LIMIT_QUOTA_WAIT e RATE_LIMIT_QUOTA_MAX_RETRIES no .env.
+QUOTA_WAIT = ler_env_int("RATE_LIMIT_QUOTA_WAIT", 60)
+QUOTA_MAX_RETRIES = ler_env_int("RATE_LIMIT_QUOTA_MAX_RETRIES", 3)
 
 logging.basicConfig(filename='retreino_stride_log.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -168,18 +172,37 @@ def retreinar_stride():
 
     # 3. Verificar se há resultados anteriores para continuar
     resultados = []
-    teste_inicial = 0
-    
+    # indices_retry: lista ordenada (crescente) dos teste_idx que falharam e precisam ser reprocessados.
+    # Vazia quando não há arquivo anterior ou o usuário optou por não continuar.
+    indices_retry: list[int] = []
+    modo_retry = False
+
     if os.path.exists(ARQUIVO_RESULTADOS_NOVO):
         print(f"\n⚠️  Arquivo {ARQUIVO_RESULTADOS_NOVO} já existe.")
-        resposta = input("Deseja continuar de onde parou? (s/n): ")
+        resposta = input("Deseja continuar / reprocessar casos com erro? (s/n): ")
         if resposta.lower() == 's':
             with open(ARQUIVO_RESULTADOS_NOVO, 'r', encoding='utf-8') as f:
                 resultados = json.load(f)
-                # Encontrar o último teste_idx processado (não usa len, pois usuário pode ter apagado itens)
-                if resultados:
-                    teste_inicial = max(item['teste_idx'] for item in resultados) + 1
-                print(f"✓ Continuando do teste {teste_inicial} (total de {len(resultados)} resultados salvos)")
+
+            # Separar casos com sucesso dos que falharam
+            erros = sorted(
+                [item['teste_idx'] for item in resultados if 'erro' in item]
+            )
+            sucessos = len(resultados) - len(erros)
+
+            if erros:
+                # Retry seletivo: reprocessar apenas os casos com erro, do primeiro ao último
+                indices_retry = erros
+                modo_retry = True
+                print(f"✓ {sucessos} casos concluídos com sucesso preservados.")
+                print(f"🔁 Retry seletivo: {len(erros)} caso(s) com erro serão reprocessados")
+                print(f"   Primeiro erro: teste_idx={erros[0]} | Último: teste_idx={erros[-1]}")
+                # Remover entradas de erro para reprocessamento limpo
+                resultados = [item for item in resultados if 'erro' not in item]
+            else:
+                print(f"✓ Todos os {len(resultados)} casos anteriores concluíram com sucesso.")
+                print("   Nada a reprocessar. Encerrando.")
+                return
 
     # 4. Inicializar LLM
     print(f"\n🤖 Modelo LLM: {MODELO_LLM}")
@@ -191,95 +214,150 @@ def retreinar_stride():
     chain = prompt | llm
 
     # 5. Executar testes
-    print(f"\n🚀 Iniciando testes ({teste_inicial} até {total_testes})...\n")
+    if modo_retry:
+        print(f"\n🚀 Reprocessando {len(indices_retry)} caso(s) com erro (ordem crescente de teste_idx)...\n")
+    else:
+        print(f"\n🚀 Iniciando testes (0 até {total_testes})...\n")
     print("💾 Salvamento automático após cada resposta\n")
     
-    for idx in range(teste_inicial, total_testes):
+    # Determinar quais índices processar
+    indices_a_processar = indices_retry if modo_retry else list(range(total_testes))
+    total_a_processar = len(indices_a_processar)
+    contagem_sucesso = 0
+    contagem_erro = 0
+
+    for posicao, idx in enumerate(indices_a_processar):
         item = dados_teste[idx]
         codigo = item.get('input', '')
         ground_truth = item.get('output', '{}')
         
-        print(f"🔍 Teste {idx+1}/{total_testes}... ", end='', flush=True)
+        print(f"🔍 [{posicao+1}/{total_a_processar}] Teste idx={idx}... ", end='', flush=True)
         
-        try:
-            # Buscar contexto RAG
-            resultados_busca = db.similarity_search(codigo, k=3)
-            contexto_str = ""
-            for doc in resultados_busca:
-                contexto_str += f"\n---\nExemplo Similar:\n{doc.page_content[:500]}...\n"
-            
-            # Consultar LLM
-            resposta = chain.invoke({
-                "codigo_alvo": codigo,
-                "base_conhecimento": contexto_str
-            })
-            
-            # Tentar parsear resposta JSON
-            resposta_texto = resposta.content.strip()
-            
-            # Remover markdown se presente
-            if resposta_texto.startswith("```json"):
-                resposta_texto = resposta_texto.split("```json")[1]
-                resposta_texto = resposta_texto.split("```")[0]
-            elif resposta_texto.startswith("```"):
-                resposta_texto = resposta_texto.split("```")[1]
-                if resposta_texto.startswith("json"):
-                    resposta_texto = resposta_texto[4:]
-                resposta_texto = resposta_texto.split("```")[0]
-            
-            resposta_texto = resposta_texto.strip()
-            
+        tentativas = 0
+        while True:
             try:
-                resultado_llm = json.loads(resposta_texto)
-            except json.JSONDecodeError:
-                resultado_llm = {
-                    "error": "Resposta não é JSON válido",
-                    "raw_response": resposta_texto
-                }
-            
-            resultados.append({
-                "teste_idx": idx,
-                "id_original": item.get('id', f'teste_{idx}'),
-                "codigo_input": codigo,
-                "ground_truth": ground_truth,
-                "resultado_llm": resultado_llm
-            })
-            
-            # Salvar IMEDIATAMENTE após cada resposta (proteção contra rate limit)
-            with open(ARQUIVO_RESULTADOS_NOVO, 'w', encoding='utf-8') as f:
-                json.dump(resultados, f, indent=2, ensure_ascii=False)
-            
-            logging.info(f"Teste {idx} concluído com sucesso")
-            print(f"✅ (💾 {len(resultados)} salvos)")
-            
-        except Exception as e:
-            logging.error(f"Erro no teste {idx}: {str(e)}")
-            resultados.append({
-                "teste_idx": idx,
-                "id_original": item.get('id', f'teste_{idx}'),
-                "codigo_input": codigo,
-                "ground_truth": ground_truth,
-                "erro": str(e)
-            })
-            
-            # Salvar também em caso de erro
-            with open(ARQUIVO_RESULTADOS_NOVO, 'w', encoding='utf-8') as f:
-                json.dump(resultados, f, indent=2, ensure_ascii=False)
-            
-            print(f"❌ Erro: {str(e)[:50]}")
+                # Buscar contexto RAG
+                resultados_busca = db.similarity_search(codigo, k=3)
+                contexto_str = ""
+                for doc in resultados_busca:
+                    contexto_str += f"\n---\nExemplo Similar:\n{doc.page_content[:500]}...\n"
+                
+                # Consultar LLM
+                resposta = chain.invoke({
+                    "codigo_alvo": codigo,
+                    "base_conhecimento": contexto_str
+                })
+                
+                # Tentar parsear resposta JSON
+                resposta_texto = resposta.content.strip()
+                
+                # Remover markdown se presente
+                if resposta_texto.startswith("```json"):
+                    resposta_texto = resposta_texto.split("```json")[1]
+                    resposta_texto = resposta_texto.split("```")[0]
+                elif resposta_texto.startswith("```"):
+                    resposta_texto = resposta_texto.split("```")[1]
+                    if resposta_texto.startswith("json"):
+                        resposta_texto = resposta_texto[4:]
+                    resposta_texto = resposta_texto.split("```")[0]
+                
+                resposta_texto = resposta_texto.strip()
+                
+                try:
+                    resultado_llm = json.loads(resposta_texto)
+                except json.JSONDecodeError:
+                    resultado_llm = {
+                        "error": "Resposta não é JSON válido",
+                        "raw_response": resposta_texto
+                    }
+                
+                resultados.append({
+                    "teste_idx": idx,
+                    "id_original": item.get('id', f'teste_{idx}'),
+                    "codigo_input": codigo,
+                    "ground_truth": ground_truth,
+                    "resultado_llm": resultado_llm
+                })
+                
+                # Salvar IMEDIATAMENTE após cada resposta (proteção contra rate limit)
+                with open(ARQUIVO_RESULTADOS_NOVO, 'w', encoding='utf-8') as f:
+                    json.dump(sorted(resultados, key=lambda x: x['teste_idx']),
+                              f, indent=2, ensure_ascii=False)
+                
+                logging.info(f"Teste {idx} concluído com sucesso")
+                contagem_sucesso += 1
+                print(f"✅ (✓ {contagem_sucesso} ok / ✗ {contagem_erro} erros)")
+                break  # sair do loop de tentativas
+                
+            except Exception as e:
+                erro_str = str(e)
+                # Detectar erro de quota/rate-limit para aplicar backoff automático
+                eh_quota = (
+                    "rate_limit_exceeded" in erro_str.lower()
+                    or "429" in erro_str
+                    or "quota" in erro_str.lower()
+                )
+                tentativas += 1
+                if eh_quota and tentativas <= QUOTA_MAX_RETRIES:
+                    print(
+                        f"\n⏳ Quota atingida (tentativa {tentativas}/{QUOTA_MAX_RETRIES}). "
+                        f"Aguardando {QUOTA_WAIT}s antes de tentar novamente..."
+                    )
+                    logging.warning(
+                        f"Quota atingida no teste {idx} (tentativa {tentativas}). "
+                        f"Aguardando {QUOTA_WAIT}s."
+                    )
+                    time.sleep(QUOTA_WAIT)
+                    continue  # tentar novamente
+
+                # Falha definitiva: registrar erro
+                logging.error(f"Erro no teste {idx}: {erro_str}")
+                resultados.append({
+                    "teste_idx": idx,
+                    "id_original": item.get('id', f'teste_{idx}'),
+                    "codigo_input": codigo,
+                    "ground_truth": ground_truth,
+                    "erro": erro_str
+                })
+                
+                # Salvar também em caso de erro
+                with open(ARQUIVO_RESULTADOS_NOVO, 'w', encoding='utf-8') as f:
+                    json.dump(sorted(resultados, key=lambda x: x['teste_idx']),
+                              f, indent=2, ensure_ascii=False)
+                
+                contagem_erro += 1
+                aviso_quota = " (quota esgotada após retries)" if eh_quota else ""
+                print(f"❌ Erro{aviso_quota}: {erro_str[:60]}")
+                break  # sair do loop de tentativas
         
         # Rate limiting
         time.sleep(PAUSA_ENTRE_REQUISICOES)
         
-        if (idx + 1) % REQUISICOES_POR_LOTE == 0:
+        if (posicao + 1) % REQUISICOES_POR_LOTE == 0:
             print(f"⏸️  Pausa de {PAUSA_LOTE}s (limite de taxa)...")
             time.sleep(PAUSA_LOTE)
 
     print("\n\n" + "=" * 80)
-    print("✅ RE-EXECUÇÃO CONCLUÍDA!")
+    total_processados = contagem_sucesso + contagem_erro
+    if contagem_erro == 0:
+        print("✅ RE-EXECUÇÃO CONCLUÍDA COM SUCESSO!")
+    else:
+        print("⚠️  RE-EXECUÇÃO CONCLUÍDA PARCIALMENTE")
     print("=" * 80)
     print(f"\n📁 Resultados salvos em: {ARQUIVO_RESULTADOS_NOVO}")
-    print(f"📊 Total de testes executados: {len(resultados)}")
+    print(f"✅ Concluídos com sucesso : {contagem_sucesso:4d} / {total_processados}")
+    print(f"❌ Falhas (erros de API)  : {contagem_erro:4d} / {total_processados}")
+    if contagem_erro > 0:
+        indices_com_erro = sorted(
+            [item['teste_idx'] for item in resultados if 'erro' in item]
+        )
+        print(f"\n⚠️  ATENÇÃO: {contagem_erro} caso(s) com erro. Execute novamente e escolha 's'")
+        print(f"   para reprocessar automaticamente do primeiro erro (idx={indices_com_erro[0]}).")
+        logging.warning(
+            "Execução concluída parcialmente: %d sucesso(s), %d erro(s). "
+            "Índices com erro: %s",
+            contagem_sucesso, contagem_erro, indices_com_erro
+        )
     
 if __name__ == "__main__":
     retreinar_stride()

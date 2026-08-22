@@ -69,8 +69,22 @@ def carregar_jsonl(caminho: str) -> list:
     return registros
 
 
-def extrair_ids(registros: list) -> set:
-    return {r.get("id", "") for r in registros}
+def _chave_registro(r: dict) -> str:
+    """Gera uma chave única e determinística para um registro.
+
+    Usa o campo 'id' quando presente. Se ausente (como no dataset deste
+    projeto, que possui apenas 'instruction', 'input' e 'output'), a chave
+    é construída concatenando os primeiros 200 caracteres de 'input' e
+    'output' — reprodução da mesma separação determinística usada em
+    00_gerar_dataset_final.py.
+    """
+    if "id" in r and r["id"]:
+        return str(r["id"])
+    return (r.get("input", "")[:200] + "||" + r.get("output", "")[:200])
+
+
+def extrair_chaves(registros: list) -> set:
+    return {_chave_registro(r) for r in registros}
 
 
 def main():
@@ -104,9 +118,21 @@ def main():
     teste = carregar_jsonl(args.teste)
     print(f"   → {len(teste)} registros de teste carregados")
 
+    # Detectar se os registros têm campo 'id' e avisar quando ausente
+    amostra = todos[:1] + teste[:1] if todos or teste else []
+    usa_id = any("id" in r and r["id"] for r in amostra)
+    if not usa_id:
+        print(
+            "\n⚠️  Campo 'id' não encontrado nos registros."
+        )
+        print(
+            "   Usando chave composta (input[:200] + output[:200]) para"
+            " separar treino de teste — mesma lógica de 00_gerar_dataset_final.py."
+        )
+
     # Identificar exemplos de treino (todos que não estão no conjunto de teste)
-    ids_teste = extrair_ids(teste)
-    treino = [r for r in todos if r.get("id", "") not in ids_teste]
+    chaves_teste = extrair_chaves(teste)
+    treino = [r for r in todos if _chave_registro(r) not in chaves_teste]
     print(f"\n✂️  Partição de treino: {len(treino)} exemplos")
     print(f"✂️  Partição de teste:  {len(teste)} exemplos")
 
